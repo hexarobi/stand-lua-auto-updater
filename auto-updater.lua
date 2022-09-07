@@ -1,4 +1,4 @@
--- Auto-Updater v1.0
+-- Auto-Updater v1.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- Example Usage:
@@ -64,16 +64,16 @@ function auto_update(auto_update_config)
     async_http.init(auto_update_config.source_host, auto_update_config.source_path, function(result, headers, status_code)
         if status_code == 304 then
             -- No update found
-            return
+            return false
         end
         if not result or result == "" then
             util.toast("Error updating "..auto_update_config.script_name..". Found empty script file.")
-            return
+            return false
         end
         -- Lua scripts should begin with a comment but other HTML responses will not
         if not string_starts(result, "--") then
             util.toast("Error updating "..auto_update_config.script_name..". Found invalid script file.")
-            return
+            return false
         end
         replace_current_script(auto_update_config, result)
         if headers then
@@ -84,7 +84,7 @@ function auto_update(auto_update_config)
             end
         end
         util.toast("Updated "..auto_update_config.script_name..". Please restart script.")
-        util.stop_script()
+        return true
     end, function()
         util.toast("Error updating "..auto_update_config.script_name..". Update failed to download.")
     end)
