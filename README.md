@@ -2,14 +2,19 @@
 
 A lib file to make auto-updating script files easy. Relies on [ETags](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) for version checks.
 
-# Installation
+# Quick Start
 
-Add the following snippet to your Lua script. 
-This adds a `require_or_download(library_name, source_host, source_path)` function so scripts will either 
-include a lib if its already downloaded, or download and install it from GitHub.
-Then uses that function to install the auto-updater lib.
+Add this snippet to your Lua Script, edit the `source_url` field with the URL of the raw version of your main script file. Thats it!
 
-```lua
+```
+local auto_update_config = {
+    source_host="raw.githubusercontent.com",            -- If using GitHub this should stay `raw.githubusercontent.com`
+    -- *** EDIT THIS LINE *** Update with the URL of your specific RAW script file
+    source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
+    script_name=SCRIPT_NAME,                            -- No edit needed. `SCRIPT_NAME` will be set automatically by Stand.
+    script_relpath=SCRIPT_RELPATH,                      -- No edit needed. `SCRIPT_RELPATH` will be set automatically by Stand.
+}
+
 local function require_or_download(lib_name, download_source_host, download_source_path)
     local status, lib = pcall(require, lib_name)
     if (status) then return lib end
@@ -28,31 +33,60 @@ local function require_or_download(lib_name, download_source_host, download_sour
 end
 
 require_or_download("auto-updater", "raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua")
+auto_update(auto_update_config)
 ```
 
-# How to Use
+# More Details
 
-Within your own Lua Script, add the following configuration
+#### Require or Download Function
 
+This adds a `require_or_download(library_name, source_host, source_path)` function so scripts will either 
+include a lib if its already downloaded, or download and install it from GitHub.
 
 ```lua
-require("auto-updater")
+local function require_or_download(lib_name, download_source_host, download_source_path)
+    local status, lib = pcall(require, lib_name)
+    if (status) then return lib end
+    async_http.init(download_source_host, download_source_path, function(result, headers, status_code)
+        local error_prefix = "Error downloading "..lib_name..": "
+        if status_code ~= 200 then util.toast(error_prefix..status_code) return false end
+        if not result or result == "" then util.toast(error_prefix.."Found empty file.") return false end
+        local file = io.open(filesystem.scripts_dir() .. "lib\\" .. lib_name .. ".lua", "wb")
+        if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
+        file:write(result) file:close()
+        util.toast("Installed lib "..lib_name..". Stopping script...")
+        util.yield(2000)        -- Pause to allow for other lib downloads to finish
+        util.stop_script()      -- TODO: Change to restart instead of stop once added to util
+    end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
+    async_http.dispatch()
+end
+```
 
+#### Use require or download to install auto-updater lib
+
+```lua
+require_or_download("auto-updater", "raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua")
+```
+
+#### Customize config for your script's raw source URL
+
+```lua
 local auto_update_config = {
-    source_host="raw.githubusercontent.com",            -- If using GitHub this should stay `raw.githubusercontent.com`
-    source_path="/username/project/main/MyScript.lua",  -- Edit this line to match your projects source URL path
+    -- *** EDIT THIS LINE *** Update with the URL of your specific RAW script file
+    source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
     script_name=SCRIPT_NAME,                            -- No edit needed. `SCRIPT_NAME` will be set automatically by Stand.
     script_relpath=SCRIPT_RELPATH,                      -- No edit needed. `SCRIPT_RELPATH` will be set automatically by Stand.
 }
 ```
 
-You can then add checks for updates either automatically on every script run, or with a manual menu option, or both.
-
+#### Check for updates on script load
 
 ```lua
 -- Check for updates anytime the script is run
 auto_update(auto_update_config)
 ```
+
+### Check for updates from a menu option
 
 ```lua
 -- Manually check for updates with a menu option
