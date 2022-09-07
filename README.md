@@ -24,12 +24,11 @@ local function require_or_download(lib_name, download_source_host, download_sour
         local file = io.open(filesystem.scripts_dir() .. "lib\\" .. lib_name .. ".lua", "wb")
         if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
         file:write(result) file:close()
-        util.toast("Installed lib "..lib_name..". Stopping script...")
-        util.yield(2900)        -- Pause to allow for other lib downloads to finish
-        util.stop_script()      -- TODO: Change to restart instead of stop once added to util
+        util.toast("Successfully installed lib "..lib_name)
     end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
     async_http.dispatch()
-    util.yield(3000)
+    util.yield(3000)    -- Pause to let download finish before continuing
+    require(lib_name)
 end
 
 require_or_download("auto-updater", "raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua")
@@ -54,12 +53,11 @@ local function require_or_download(lib_name, download_source_host, download_sour
         local file = io.open(filesystem.scripts_dir() .. "lib\\" .. lib_name .. ".lua", "wb")
         if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
         file:write(result) file:close()
-        util.toast("Installed lib "..lib_name..". Stopping script...")
-        util.yield(2900)        -- Pause to allow for other lib downloads to finish
-        util.stop_script()      -- TODO: Change to restart instead of stop once added to util
+        util.toast("Successfully installed lib "..lib_name)
     end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
     async_http.dispatch()
-    util.yield(3000)
+    util.yield(3000)    -- Pause to let download finish before continuing
+    require(lib_name)
 end
 ```
 
