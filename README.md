@@ -8,7 +8,6 @@ Add this snippet to your Lua Script, edit the `source_url` field with the URL of
 
 ```
 local auto_update_config = {
-    source_host="raw.githubusercontent.com",            -- If using GitHub this should stay `raw.githubusercontent.com`
     -- *** EDIT THIS LINE *** Update with the URL of your specific RAW script file
     source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
     script_name=SCRIPT_NAME,                            -- No edit needed. `SCRIPT_NAME` will be set automatically by Stand.
@@ -30,6 +29,7 @@ local function require_or_download(lib_name, download_source_host, download_sour
         util.stop_script()      -- TODO: Change to restart instead of stop once added to util
     end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
     async_http.dispatch()
+    util.yield(3000)
 end
 
 require_or_download("auto-updater", "raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua")
@@ -59,6 +59,7 @@ local function require_or_download(lib_name, download_source_host, download_sour
         util.stop_script()      -- TODO: Change to restart instead of stop once added to util
     end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
     async_http.dispatch()
+    util.yield(3000)
 end
 ```
 
