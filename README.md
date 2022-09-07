@@ -33,6 +33,12 @@ auto_update(auto_update_config)
 ```lua
 -- Manually check for updates with a menu option
 menu.action(menu.my_root(), "Check for Update", {}, "Attempt to update to latest version", function()
-    auto_update(auto_update_config)
+    local updated = auto_update(auto_update_config)
+    if updated then
+        util.toast("Updated "..auto_update_config.script_name..". Please restart script to apply changes.")
+        util.stop_script()
+    else
+        util.toast("Already on latest version, no update available.")
+    end
 end)
 ```
