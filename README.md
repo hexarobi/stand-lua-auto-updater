@@ -25,7 +25,7 @@ local function require_or_download(lib_name, download_source_host, download_sour
         if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
         file:write(result) file:close()
         util.toast("Installed lib "..lib_name..". Stopping script...")
-        util.yield(2000)        -- Pause to allow for other lib downloads to finish
+        util.yield(2900)        -- Pause to allow for other lib downloads to finish
         util.stop_script()      -- TODO: Change to restart instead of stop once added to util
     end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
     async_http.dispatch()
