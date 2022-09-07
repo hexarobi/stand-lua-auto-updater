@@ -1,4 +1,4 @@
--- Auto-Updater v1.2
+-- Auto-Updater v1.3
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- Example Usage:
@@ -44,10 +44,16 @@ local function replace_current_script(auto_update_config, new_script)
 end
 
 local function restart_script(auto_update_config)
+    -- simulate normal stop
     util.dispatch_on_stop()
     util.stop_all_threads()
+
+    -- temporarily idling while Stand resets this environment
     util.keep_running()
     util.clear_commands_and_event_handlers()
+    util.stop_all_threads()
+
+    -- load script file again
     local c,e=loadfile(auto_update_config.script_path)
     if c then
         Stand_internal_coroutine_create(c)
@@ -96,8 +102,11 @@ function auto_update(auto_update_config)
                 end
             end
         end
-        util.toast("Updated "..auto_update_config.script_name..". Restarting script.")
-        restart_script(auto_update_config)
+        if auto_update_config.auto_restart ~= false then
+            util.toast("Updated "..auto_update_config.script_name..". Restarting script.")
+            restart_script(auto_update_config)
+        end
+        return true
     end, function()
         util.toast("Error updating "..auto_update_config.script_name..". Update failed to download.")
     end)
