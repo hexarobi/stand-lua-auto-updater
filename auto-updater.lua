@@ -1,4 +1,4 @@
--- Auto-Updater v1.4
+-- Auto-Updater v1.4.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- Example Usage:
@@ -17,10 +17,10 @@ local function string_starts(String,Start)
 end
 
 local function read_version_id(auto_update_config)
-    local f = io.open(auto_update_config.version_file)
-    if f then
-        local version = f:read()
-        f:close()
+    local file = io.open(auto_update_config.version_file)
+    if file then
+        local version = file:read()
+        file:close()
         return version
     end
 end
@@ -28,7 +28,7 @@ end
 local function write_version_id(auto_update_config, version_id)
     local file = io.open(auto_update_config.version_file, "wb")
     if file == nil then
-        util.toast("Error saving version id")
+        util.toast("Error saving version id file: " .. auto_update_config.version_file)
     end
     file:write(version_id)
     file:close()
@@ -37,7 +37,7 @@ end
 local function replace_current_script(auto_update_config, new_script)
     local file = io.open(auto_update_config.script_path, "wb")
     if file == nil then
-        util.toast("Error updating "..auto_update_config.script_name..". Found empty script file.")
+        util.toast("Error updating "..auto_update_config.script_name..". Could not open file for writing.")
     end
     file:write(new_script.."\n")
     file:close()
@@ -61,6 +61,12 @@ local function restart_script(auto_update_config)
     end
 end
 
+local function ensure_script_store_dir_exists(auto_update_config)
+    if not filesystem.exists(auto_update_config.script_store_dir) then
+        filesystem.mkdir(auto_update_config.script_store_dir)
+    end
+end
+
 local function join_path(parent, child)
     local sub = parent:sub(-1)
     if sub == "/" or sub == "\\" then
@@ -74,6 +80,7 @@ local function expand_auto_update_config(auto_update_config)
     auto_update_config.script_clean_name = auto_update_config.script_name:gsub(".lua", "")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
     auto_update_config.script_store_dir = filesystem.store_dir() .. auto_update_config.script_clean_name .. '\\'
+    ensure_script_store_dir_exists(auto_update_config)
     auto_update_config.version_file = join_path(auto_update_config.script_store_dir, "version.txt")
 end
 
@@ -101,8 +108,10 @@ function auto_update(auto_update_config)
                 end
             end
         end
-        util.toast("Updated "..auto_update_config.script_name..". Restarting script.")
-        restart_script(auto_update_config)
+        if auto_update_config.auto_restart ~= false then
+            util.toast("Updated "..auto_update_config.script_name..". Restarting script.")
+            restart_script(auto_update_config)
+        end
     end, function()
         util.toast("Error updating "..auto_update_config.script_name..". Update failed to download.")
     end)
@@ -114,3 +123,11 @@ function auto_update(auto_update_config)
     end
     async_http.dispatch()
 end
+
+-- Self-apply auto-update to this lib file
+auto_update({
+    source_host="raw.githubusercontent.com",
+    source_path="/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+    script_name="auto-updater.lua",
+    script_relpath="lib/auto-updater.lua",
+})
