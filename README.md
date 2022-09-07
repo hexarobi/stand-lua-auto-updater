@@ -35,7 +35,8 @@ auto_update(auto_update_config)
 menu.action(menu.my_root(), "Check for Update", {}, "Attempt to update to latest version", function()
     local updated = auto_update(auto_update_config)
     if updated then
-        util.toast("Updated "..auto_update_config.script_name..". Please restart script to apply changes.")
+        -- Update message is toasted by the auto updater:
+        -- "Updated "..auto_update_config.script_name..". Please restart script to apply changes."
         util.stop_script()
     else
         util.toast("Already on latest version, no update available.")
