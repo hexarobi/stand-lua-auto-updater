@@ -1,16 +1,13 @@
--- Auto-Updater v1.4.1
+-- Auto-Updater v1.5
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- Example Usage:
 --    require("auto-updater")
---    menu.action(script_meta_menu, "Check for Update", {}, "Attempt to update to latest version", function()
---        auto_update{
---            source_host="raw.githubusercontent.com",
---            source_path="/hexarobi/stand-lua-hornsongs/main/HornSongs.lua",
---            script_name=SCRIPT_NAME,
---            script_relpath=SCRIPT_RELPATH,
---        }
---    end)
+--    auto_update({
+--        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/HornSongs.lua",
+--        script_name=SCRIPT_NAME,
+--        script_relpath=SCRIPT_RELPATH,
+--    })
 
 local function string_starts(String,Start)
     return string.sub(String,1,string.len(Start))==Start
@@ -82,11 +79,22 @@ local function expand_auto_update_config(auto_update_config)
     auto_update_config.script_store_dir = filesystem.store_dir() .. auto_update_config.script_clean_name .. '\\'
     ensure_script_store_dir_exists(auto_update_config)
     auto_update_config.version_file = join_path(auto_update_config.script_store_dir, "version.txt")
+    if auto_update_config.source_url == nil then        -- For backward compatibility with older configs
+        auto_update_config.source_url = "https://" .. auto_update_config.source_host .. "/" .. auto_update_config.source_path
+    end
+end
+
+local function parse_url_host(url)
+    return url:match("://(.-)/")
+end
+
+local function parse_url_path(url)
+    return "/"..url:match("://.-/(.*)")
 end
 
 function auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
-    async_http.init(auto_update_config.source_host, auto_update_config.source_path, function(result, headers, status_code)
+    async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
         if status_code == 304 then
             -- No update found
             return false
@@ -109,7 +117,8 @@ function auto_update(auto_update_config)
             end
         end
         if auto_update_config.auto_restart ~= false then
-            util.toast("Updated "..auto_update_config.script_name..". Restarting script.")
+            util.toast("Updated "..auto_update_config.script_name..". Restarting script...")
+            util.yield(2000)    -- Avoid restart loops by giving time for any other scripts to also complete updates
             restart_script(auto_update_config)
         end
     end, function()
@@ -126,8 +135,7 @@ end
 
 -- Self-apply auto-update to this lib file
 auto_update({
-    source_host="raw.githubusercontent.com",
-    source_path="/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
     script_name="auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
 })
