@@ -1,4 +1,4 @@
--- Auto-Updater v1.04
+-- Auto-Updater v1.4
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- Example Usage:
