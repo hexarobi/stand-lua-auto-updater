@@ -59,10 +59,19 @@ local function require_or_download(lib_name, download_source_host, download_sour
     if (status) then return lib end
     async_http.init(download_source_host, download_source_path, function(result, headers, status_code)
         local error_prefix = "Error downloading "..lib_name..": "
-        if status_code ~= 200 then util.toast(error_prefix..status_code) return false end
-        if not result or result == "" then util.toast(error_prefix.."Found empty file.") return false end
+        if status_code ~= 200 then 
+            util.toast(error_prefix..status_code) 
+            return false 
+        end
+        if not result or result == "" then 
+            util.toast(error_prefix.."Found empty file.") 
+            return false 
+        end
         local file = io.open(filesystem.scripts_dir() .. "lib\\" .. lib_name .. ".lua", "wb")
-        if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
+        if file == nil then 
+            util.toast(error_prefix.."Could not open file for writing.")
+            return false
+        end
         file:write(result) file:close()
         util.toast("Successfully installed lib "..lib_name)
     end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
@@ -82,10 +91,8 @@ require_or_download("auto-updater", "raw.githubusercontent.com", "/hexarobi/stan
 
 ```lua
 local auto_update_config = {
-    -- *** EDIT THIS LINE *** Update with the URL of your specific RAW script file
     source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
-    script_name=SCRIPT_NAME,                            -- No edit needed. `SCRIPT_NAME` will be set automatically by Stand.
-    script_relpath=SCRIPT_RELPATH,                      -- No edit needed. `SCRIPT_RELPATH` will be set automatically by Stand.
+    script_relpath=SCRIPT_RELPATH,  -- No edit needed. `SCRIPT_RELPATH` will be set automatically by Stand.
 }
 ```
 
