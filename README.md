@@ -2,39 +2,31 @@
 
 A lib file to make auto-updating script files easy. Relies on [ETags](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) for version checks.
 
-# Quick Start
+## Quick Start
 
-Add this snippet to your Lua Script, edit the `source_url` field with the URL of the raw version of your main script file. Thats it!
+Add this snippet near the top of your Lua Script, edit the `auto_update_source_url` field with the URL of the raw version of your main script file. Thats it!
 
-```
-local auto_update_config = {
-    source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
-    script_relpath=SCRIPT_RELPATH,  -- Set to root script automatically, but can be modified for lib files
-}
-local function auto_update(auto_update_config)
-    local function require_or_download(lib_name, download_source_host, download_source_path)
-        local status, lib = pcall(require, lib_name) if (status) then return lib end
-        async_http.init(download_source_host, download_source_path, function(result, headers, status_code)
-            local error_prefix = "Error downloading "..lib_name..": "
-            if status_code ~= 200 then util.toast(error_prefix..status_code) return false end
-            if not result or result == "" then util.toast(error_prefix.."Found empty file.") return false end
-            local file = io.open(filesystem.scripts_dir() .. "lib\\" .. lib_name .. ".lua", "wb")
-            if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
-            file:write(result) file:close() util.toast("Successfully installed lib "..lib_name)
-        end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
-        async_http.dispatch() util.yield(3000) require(lib_name)
-    end
-    require_or_download("auto-updater","raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua")
-    run_auto_update(auto_update_config)
-end
-auto_update(auto_update_config)
+```lua
+local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua"
+local status, lib = pcall(require, "auto-updater") if (status) then return lib end
+async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+    function(result, headers, status_code) local error_prefix = "Error downloading auto-updater: "
+        if status_code ~= 200 then util.toast(error_prefix..status_code) return false end
+        if not result or result == "" then util.toast(error_prefix.."Found empty file.") return false end
+        local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
+        if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
+        file:write(result) file:close() util.toast("Successfully installed auto-updater lib")
+    end, function() util.toast("Error downloading auto-updater lib. Update failed to download.") end)
+async_http.dispatch() util.yield(3000) require("auto-updater")
+run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH})
 ```
 
-#### Additional lib files
+### Additional files
 
-If your project depends on additional lib files, you can setup auto_update calls for them so that they 
-will both auto-install if missing, and auto-update when updated. 
-The auto-updater even uses this internally on itself to apply updates.
+If your project depends on additional files, you can setup auto_update calls for each file so that they 
+will auto-install and auto-update as needed. The auto-updater even uses this internally on itself to apply updates.
+
+#### Example single lib file
 
 ```lua
 auto_update({
@@ -43,75 +35,34 @@ auto_update({
 })
 ```
 
-# More Details
-
-#### Require or Download Function
-
-This adds a `require_or_download(library_name, source_host, source_path)` function so scripts will either 
-include a lib if its already downloaded, or download and install it from GitHub.
-
-NOTE: The `require_or_download()` function should ONLY be used to install the auto-updater lib. Once the auto-updater lib
-is installed you can use it to install other libs with `auto_update()` and gain additional features. See [Additional Lib Files](https://github.com/hexarobi/stand-lua-auto-updater/blob/main/README.md#additional-lib-files)
+#### Example multiple lib files
 
 ```lua
-local function require_or_download(lib_name, download_source_host, download_source_path)
-    local status, lib = pcall(require, lib_name)
-    if (status) then return lib end
-    async_http.init(download_source_host, download_source_path, function(result, headers, status_code)
-        local error_prefix = "Error downloading "..lib_name..": "
-        if status_code ~= 200 then 
-            util.toast(error_prefix..status_code) 
-            return false 
-        end
-        if not result or result == "" then 
-            util.toast(error_prefix.."Found empty file.") 
-            return false 
-        end
-        local file = io.open(filesystem.scripts_dir() .. "lib\\" .. lib_name .. ".lua", "wb")
-        if file == nil then 
-            util.toast(error_prefix.."Could not open file for writing.")
-            return false
-        end
-        file:write(result) file:close()
-        util.toast("Successfully installed lib "..lib_name)
-    end, function() util.toast("Error downloading "..lib_name..". Update failed to download.") end)
-    async_http.dispatch()
-    util.yield(3000)    -- Pause to let download finish before continuing
-    require(lib_name)
+local root_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/"
+local lib_files = {
+    "lib/example1.lua",
+    "lib/example2.lua"
+}
+for _, lib_file in pairs(lib_files) do
+    auto_update({
+        source_url=root_source_url..lib_file,
+        script_relpath=lib_file,
+    })
 end
 ```
 
-#### Use require or download to install auto-updater lib
+### Check for updates from a menu option
 
-```lua
-require_or_download("auto-updater", "raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua")
-```
-
-#### Customize config for your script's raw source URL
-
-```lua
-local auto_update_config = {
-    source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
-    script_relpath=SCRIPT_RELPATH,  -- No edit needed. `SCRIPT_RELPATH` will be set automatically by Stand.
-}
-```
-
-#### Check for updates on script load
-
-```lua
--- Check for updates anytime the script is run
-auto_update(auto_update_config)
-```
-
-#### Check for updates from a menu option
+In addition to checking for updates at startup, you can optionally add
+a menu item to kick off an update check.
 
 ```lua
 -- Manually check for updates with a menu option
-menu.action(menu.my_root(), "Check for Update", {}, "Attempt to update to latest version", function()
+menu.action(menu.my_root(), "Check for Updates", {}, "Attempt to update to latest version", function()
     local updated = auto_update(auto_update_config)
     -- If update is applied script will be restarted so no response will return
     if not updated then
-        util.toast("Already on latest version, no update available.")
+        util.toast("Already on latest version, no updates available.")
     end
 end)
 ```
