@@ -43,7 +43,7 @@ This adds a `require_or_download(library_name, source_host, source_path)` functi
 include a lib if its already downloaded, or download and install it from GitHub.
 
 NOTE: The `require_or_download()` function should ONLY be used to install the auto-updater lib. Once the auto-updater lib
-is installed you can use it to install other libs with `auto_update()` and gain additional features.
+is installed you can use it to install other libs with `auto_update()` and gain additional features. See [Additional Lib Files](https://github.com/hexarobi/stand-lua-auto-updater/blob/main/README.md#additional-lib-files)
 
 ```lua
 local function require_or_download(lib_name, download_source_host, download_source_path)
@@ -101,7 +101,7 @@ menu.action(menu.my_root(), "Check for Update", {}, "Attempt to update to latest
 end)
 ```
 
-#### Downloading additional lib files
+#### Additional lib files
 
 If your project depends on additional lib files, you can setup auto_update calls for them so that they 
 will both auto-install of missing, and auto-update when updated. 
