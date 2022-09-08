@@ -104,7 +104,7 @@ end)
 #### Additional lib files
 
 If your project depends on additional lib files, you can setup auto_update calls for them so that they 
-will both auto-install of missing, and auto-update when updated. 
+will both auto-install if missing, and auto-update when updated. 
 The auto-updater even uses this internally on itself to apply updates.
 
 ```lua
