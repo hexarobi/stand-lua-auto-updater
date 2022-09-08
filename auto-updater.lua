@@ -67,8 +67,8 @@ local function expand_auto_update_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("/", "\\")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
     if auto_update_config.version_file == nil then
-        auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*\\\\(.+)$")
-        auto_update_config.script_filepath = ("/"..auto_update_config.script_relpath):match("^(.*)\\\\.+$")
+        auto_update_config.script_filename = ("\\"..auto_update_config.script_relpath):match("^.*\\\\(.+)$")
+        auto_update_config.script_filepath = ("\\"..auto_update_config.script_relpath):match("^(.*)\\\\.+$")
         auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_filepath
         ensure_directory_exists(auto_update_config.version_store_dir)
         auto_update_config.version_file = auto_update_config.version_store_dir .. "\\" .. auto_update_config.script_filename .. ".version"
