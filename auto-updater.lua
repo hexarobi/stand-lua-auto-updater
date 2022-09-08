@@ -91,7 +91,7 @@ local function parse_url_path(url)
     return "/"..url:match("://.-/(.*)")
 end
 
-function auto_update(auto_update_config)
+function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
     async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
         if status_code == 304 then
@@ -132,8 +132,13 @@ function auto_update(auto_update_config)
     async_http.dispatch()
 end
 
+-- Wrapper for old function name
+function auto_update(auto_update_config)
+    run_auto_update(auto_update_config)
+end
+
 -- Self-apply auto-update to this lib file
-auto_update({
+run_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
 })
