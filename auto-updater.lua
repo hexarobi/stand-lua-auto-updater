@@ -1,4 +1,4 @@
--- Auto-Updater v1.6
+-- Auto-Updater v1.7
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- Example Usage:
@@ -57,27 +57,22 @@ local function restart_script(auto_update_config)
     end
 end
 
-local function ensure_script_store_dir_exists(auto_update_config)
-    if not filesystem.exists(auto_update_config.script_store_dir) then
-        filesystem.mkdir(auto_update_config.script_store_dir)
-    end
-end
-
-local function join_path(parent, child)
-    local sub = parent:sub(-1)
-    if sub == "/" or sub == "\\" then
-        return parent .. child
-    else
-        return parent .. "/" .. child
+local function ensure_directory_exists(directory)
+    if not filesystem.exists(directory) then
+        filesystem.mkdir(directory)
     end
 end
 
 local function expand_auto_update_config(auto_update_config)
-    auto_update_config.script_name = ("/"..auto_update_config.script_relpath):match("^.*/(.+)[.]lua$")
+    auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("/", "\\")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
-    auto_update_config.script_store_dir = filesystem.store_dir() .. auto_update_config.script_name .. '\\'
-    ensure_script_store_dir_exists(auto_update_config)
-    auto_update_config.version_file = join_path(auto_update_config.script_store_dir, "version.txt")
+    if auto_update_config.version_file == nil then
+        auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*\\\\(.+)$")
+        auto_update_config.script_filepath = ("/"..auto_update_config.script_relpath):match("^(.*)\\\\.+$")
+        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_filepath
+        ensure_directory_exists(auto_update_config.version_store_dir)
+        auto_update_config.version_file = auto_update_config.version_store_dir .. "\\" .. auto_update_config.script_filename .. ".version"
+    end
     if auto_update_config.source_url == nil then        -- For backward compatibility with older configs
         auto_update_config.source_url = "https://" .. auto_update_config.source_host .. "/" .. auto_update_config.source_path
     end
@@ -99,13 +94,16 @@ function run_auto_update(auto_update_config)
             return false
         end
         if not result or result == "" then
-            util.toast("Error updating "..auto_update_config.script_name..". Found empty script file.")
+            util.toast("Error updating "..auto_update_config.script_filename..". Found empty script file.")
             return false
         end
-        -- Lua scripts should begin with a comment but other HTML responses will not
-        if not string_starts(result, "--") then
-            util.toast("Error updating "..auto_update_config.script_name..". Found invalid script file.")
-            return false
+        -- Disable expectation of lua comment to download non-lua dependencies
+        if auto_update_config.expect_lua_comment ~= false then
+            -- Lua scripts should begin with a comment but other HTML responses will not
+            if not string_starts(result, "--") then
+                util.toast("Error updating "..auto_update_config.script_filename..". Found invalid script file.")
+                return false
+            end
         end
         replace_current_script(auto_update_config, result)
         if headers then
@@ -116,12 +114,12 @@ function run_auto_update(auto_update_config)
             end
         end
         if auto_update_config.auto_restart ~= false then
-            util.toast("Updated "..auto_update_config.script_name..". Restarting script...")
+            util.toast("Updated "..auto_update_config.script_filename..". Restarting script...")
             util.yield(2000)    -- Avoid restart loops by giving time for any other scripts to also complete updates
             restart_script(auto_update_config)
         end
     end, function()
-        util.toast("Error updating "..auto_update_config.script_name..". Update failed to download.")
+        util.toast("Error updating "..auto_update_config.script_filename..". Update failed to download.")
     end)
     -- Use ETags to only fetch files if they have been updated
     -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
