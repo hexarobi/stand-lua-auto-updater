@@ -62,7 +62,7 @@ for _, included_song in pairs(included_songs) do
 end
 ```
 
-#### Example multiple required files
+#### Example multiple `require()` script files
 
 `run_auto_update()` does NOT require the files, just downloads/updates them, so to use the updated files you must still require them separately. 
 You can optionally `util.yield()` between running run_auto_update() and require() to allow any downloads to complete to avoid potential error messages.
