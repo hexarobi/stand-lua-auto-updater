@@ -62,11 +62,9 @@ end
 
 #### Example multiple required files
 
-`run_auto_update()` does NOT require the files, just downloads/updates them,
-so to use the updated files you must still require them separately. 
-You should `util.yield(3000)` between running run_auto_update() and require()
-to allow any downloads to complete. You can modify the time the script will wait
-after an update before restarting with the `restart_delay` parameter.
+`run_auto_update()` does NOT require the files, just downloads/updates them, so to use the updated files you must still require them separately. 
+You can optionally `util.yield()` between running run_auto_update() and require() to allow any downloads to complete to avoid potential error messages.
+You can modify the time the script will wait after an update before restarting with the `restart_delay` parameter.
 
 ```lua
 -- Define list of lib files
@@ -85,8 +83,10 @@ for _, lib_file in pairs(lib_files) do
     })
 end
 
--- Give updates 3 seconds to finish downloadng and installing, if updates were found this script will be killed and restarted before continuing.
-util.yield(3000)
+-- You can optionally pause here for the `restart_delay` period to avoid any misleading errors while the scripts are updating
+-- If updates are found the script will be restarted but error messages in the process can lead to confusion
+-- The downside is your script will always take this additional time to startup
+-- util.yield(3000)
 
 -- Updates have finished applying and now the script is running normally, so require the files and continue as normal
 for _, lib_file in pairs(lib_files) do
