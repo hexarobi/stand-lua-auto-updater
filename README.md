@@ -31,7 +31,7 @@ will auto-install and auto-update as needed. The auto-updater even uses this int
 #### Example single lib file
 
 ```lua
-auto_update({
+run_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
     verify_file_begins_with="--"
