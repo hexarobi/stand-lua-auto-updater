@@ -34,24 +34,64 @@ will auto-install and auto-update as needed. The auto-updater even uses this int
 auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
+    verify_file_begins_with="--"
 })
 ```
 
 #### Example multiple lib files
 
 ```lua
-local root_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/"
-local lib_files = {
-    "lib/example1.lua",
-    "lib/example2.lua"
+local included_songs = {
+    "au_claire_de_la_lune",
+    "hot_cross_buns",
+    "ode_to_joy",
+    "scales",
+    "twinkle_twinkle_little_star",
 }
-for _, lib_file in pairs(lib_files) do
-    auto_update({
-        source_url=root_source_url..lib_file,
-        script_relpath=lib_file,
+for _, included_song in pairs(included_songs) do
+    local file_relpath = "store/HornSongs/songs/"..included_song..".horn"
+    run_auto_update({
+        source_url=SOURCE_BASE_URL..file_relpath,
+        script_relpath=file_relpath,
+        auto_restart=false,
     })
 end
 ```
+
+## Config Options
+
+The `run_auto_update()` function accepts a table of options, which are described here.
+
+
+#### `source_url`
+
+The HTTP URL of the hosted source code for the script file to be downloaded. 
+This MUST point to a CDN host that supports ETags, such as GitHub, or files will be re-updated every run.
+
+#### `script_relpath`
+
+The relative path from the `Stand/Lua Scripts/` directory to the the file to be added or updated by the source file.
+For main scripts, the Stand built-in `SCRIPT_RELPATH` will work without any modification.
+For dependency lib files, graphic files, etc... this can be further configured.
+
+#### `verify_file_begins_with` (Optional, default=nil)
+
+This verifies the file downloaded begins with the specified string before replacing the current file with it.
+This is useful to make sure the script is never replaced by HTTP error messages etc...
+I always start my scripts with a comment including the name of the script, so I just verify the file starts with "--".
+
+#### `auto_restart` (Optional, default=true)
+
+Should the script auto restart after applying an update. 
+This is true by default, but can be disabled as needed, usually when loading many files,
+tho you should finish up with one final update with restart to make sure all updates are applied.
+
+#### `version_file` (Optional, default=Stand/Lua Scripts/store/auto-updater/{script_relpath}.version
+
+The location of the version lock file for any particular file to be updated.
+The content of this file is the ETag returned by the CDN, cached on disk, and sent in subsequent requests.
+If nothing has been updated the CDN will return an empty 304 response,
+if it has been updated the CDN will return a 200 response with the updated file.
 
 ### Check for updates from a menu option
 
