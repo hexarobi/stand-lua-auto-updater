@@ -41,6 +41,8 @@ run_auto_update({
 #### Example multiple lib files
 
 ```lua
+-- Example from HornSongs, loading many *.horn files into the store folder
+local source_base_url = "https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/"
 local included_songs = {
     "au_claire_de_la_lune",
     "hot_cross_buns",
@@ -51,7 +53,7 @@ local included_songs = {
 for _, included_song in pairs(included_songs) do
     local file_relpath = "store/HornSongs/songs/"..included_song..".horn"
     run_auto_update({
-        source_url=SOURCE_BASE_URL..file_relpath,
+        source_url=source_base_url..file_relpath,
         script_relpath=file_relpath,
         auto_restart=false,
     })
