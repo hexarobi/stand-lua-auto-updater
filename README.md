@@ -41,6 +41,8 @@ run_auto_update({
 #### Example multiple files
 
 Example from HornSongs, loading many `*.horn` files into the store folder.
+If the file isn't used at startup time you can set `auto_restart=false` to avoid restarting after an update.
+These horn files are only used when a player selects them, so I set `auto_restart=false`.
 
 ```lua
 local included_songs = {
@@ -79,13 +81,12 @@ for _, lib_file in pairs(lib_files) do
     run_auto_update({
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constants/main/"..file_relpath,
         script_relpath=file_relpath,
-        auto_restart=false,
     })
 end
 
 -- You can optionally pause here for the `restart_delay` period to avoid any misleading errors while the scripts are updating
--- If updates are found the script will be restarted but error messages in the process can lead to confusion
--- The downside is your script will always take this additional time to startup
+-- If updates are found the script will be auto-restarted but any error messages in between can lead to confusion
+-- The downside is your script will always take this additional time during startup
 -- util.yield(3000)
 
 -- Updates have finished applying and now the script is running normally, so require the files and continue as normal
