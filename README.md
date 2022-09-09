@@ -78,7 +78,7 @@ For dependency lib files, graphic files, etc... this can be further configured.
 
 This verifies the file downloaded begins with the specified string before replacing the current file with it.
 This is useful to make sure the script is never replaced by HTTP error messages etc...
-I always start my scripts with a comment of the name of the script, so I just verify the file starts with "--".
+I always start my scripts with a comment including the name of the script, so I just verify the file starts with "--".
 
 #### `auto_restart` (Optional, default=true)
 
