@@ -38,7 +38,11 @@ run_auto_update({
 })
 ```
 
-#### Example multiple lib files
+#### Example multiple files
+
+Example from HornSongs, loading many `*.horn` files into the store folder.
+If the file isn't used at startup time you can set `auto_restart=false` to avoid restarting after an update.
+These horn files are only used when a player selects them, so I set `auto_restart=false`.
 
 ```lua
 local included_songs = {
@@ -51,12 +55,43 @@ local included_songs = {
 for _, included_song in pairs(included_songs) do
     local file_relpath = "store/HornSongs/songs/"..included_song..".horn"
     run_auto_update({
-        source_url=SOURCE_BASE_URL..file_relpath,
+        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/"..file_relpath,
         script_relpath=file_relpath,
         auto_restart=false,
     })
-    -- If these are Lua files, don't forget to require them here too
-    -- require(included_song)
+end
+```
+
+#### Example multiple `require()` script files
+
+`run_auto_update()` does NOT require the files, just downloads/updates them, so to use the updated files you must still require them separately. 
+You can optionally `util.yield()` between running run_auto_update() and require() to allow any downloads to complete to avoid potential error messages.
+You can modify the time the script will wait after an update before restarting with the `restart_delay` parameter.
+
+```lua
+-- Define list of lib files
+local lib_files = {
+  "vehicle-constants",
+  "vehicle-hashes",
+}
+
+-- Call auto-updater for each file
+for _, lib_file in pairs(lib_files) do
+    local file_relpath = "lib/"..lib_file..".lua"
+    run_auto_update({
+        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constants/main/"..file_relpath,
+        script_relpath=file_relpath,
+    })
+end
+
+-- You can optionally pause here for the `restart_delay` period to avoid any misleading errors while the scripts are updating
+-- If updates are found the script will be auto-restarted but any error messages in between can lead to confusion
+-- The downside is your script will always take this additional time during startup
+-- util.yield(3000)
+
+-- Updates have finished applying and now the script is running normally, so require the files and continue as normal
+for _, lib_file in pairs(lib_files) do
+    require(lib_file)
 end
 ```
 
@@ -87,6 +122,11 @@ I always start my scripts with a comment including the name of the script, so I 
 Should the script auto restart after applying an update. 
 This is true by default, but can be disabled as needed, usually when loading many files,
 tho you should finish up with one final update with restart to make sure all updates are applied.
+
+#### `restart_delay` (Optional, default=2900)
+
+The number of miliseconds to wait after an update has been applied before restarting the script.
+If multiple files are being updated, this is needed to prevent restarting for each file.
 
 #### `version_file` (Optional, default=Stand/Lua Scripts/store/auto-updater/{script_relpath}.version
 

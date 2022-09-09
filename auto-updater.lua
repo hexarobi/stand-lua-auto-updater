@@ -1,6 +1,7 @@
--- Auto-Updater v1.7
+-- Auto-Updater v1.8
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
+-- https://github.com/hexarobi/stand-lua-auto-updater
 -- Example Usage:
 --    require("auto-updater")
 --    auto_update({
@@ -33,28 +34,10 @@ end
 local function replace_current_script(auto_update_config, new_script)
     local file = io.open(auto_update_config.script_path, "wb")
     if file == nil then
-        util.toast("Error updating "..auto_update_config.script_name..". Could not open file for writing.")
+        util.toast("Error updating "..auto_update_config.script_path..". Could not open file for writing.")
     end
     file:write(new_script.."\n")
     file:close()
-end
-
-local function restart_script(auto_update_config)
-    -- simulate normal stop
-    util.dispatch_on_stop()
-    util.stop_all_threads()
-
-    -- temporarily idling while Stand resets this environment
-    util.keep_running()
-    util.clear_commands_and_event_handlers()
-    -- util.stop_all_threads()
-
-    local c,e=loadfile(auto_update_config.script_path)
-    if c then
-        Stand_internal_coroutine_create(c)
-    else
-        util.toast(e, TOAST_ALL)
-    end
 end
 
 local function ensure_directory_exists(path)
@@ -70,10 +53,11 @@ end
 local function expand_auto_update_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
+    auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
+    auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
+    ensure_directory_exists(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
     if auto_update_config.version_file == nil then
-        auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
-        auto_update_config.script_filepath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
-        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_filepath
+        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_reldirpath
         ensure_directory_exists(auto_update_config.version_store_dir)
         auto_update_config.version_file = auto_update_config.version_store_dir .. "/" .. auto_update_config.script_filename .. ".version"
     end
@@ -116,18 +100,21 @@ function run_auto_update(auto_update_config)
             end
         end
         if auto_update_config.auto_restart ~= false then
-            util.toast("Updated "..auto_update_config.script_filename..". Restarting script...")
+            util.toast("Updated "..auto_update_config.script_filename..". Restarting...")
             util.yield(2900)    -- Avoid restart loops by giving time for any other scripts to also complete updates
-            restart_script(auto_update_config)
+            util.restart_script()
         end
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..". Update failed to download.")
     end)
-    -- Use ETags to only fetch files if they have been updated
-    -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
-    local cached_version_id = read_version_id(auto_update_config)
-    if cached_version_id then
-        async_http.add_header("If-None-Match", cached_version_id)
+    -- Only use cached version if the file still exists on disk
+    if filesystem.exists(auto_update_config.script_path) then
+        -- Use ETags to only fetch files if they have been updated
+        -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
+        local cached_version_id = read_version_id(auto_update_config)
+        if cached_version_id then
+            async_http.add_header("If-None-Match", cached_version_id)
+        end
     end
     async_http.dispatch()
 end
