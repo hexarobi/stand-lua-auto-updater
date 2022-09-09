@@ -101,7 +101,7 @@ a menu item to kick off an update check.
 ```lua
 -- Manually check for updates with a menu option
 menu.action(menu.my_root(), "Check for Updates", {}, "Attempt to update to latest version", function()
-    local updated = auto_update(auto_update_config)
+    local updated = run_auto_update(auto_update_config)
     -- If update is applied script will be restarted so no response will return
     if not updated then
         util.toast("Already on latest version, no updates available.")
