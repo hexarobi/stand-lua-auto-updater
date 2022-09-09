@@ -55,6 +55,8 @@ for _, included_song in pairs(included_songs) do
         script_relpath=file_relpath,
         auto_restart=false,
     })
+    -- If these are Lua files, don't forget to require them here too
+    -- require(included_song)
 end
 ```
 
