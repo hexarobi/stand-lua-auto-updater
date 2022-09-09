@@ -108,8 +108,8 @@ function run_auto_update(auto_update_config)
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..". Update failed to download.")
     end)
-    -- If file doesn't exist on disk, then fetch it regardless of version cache
-    if filesystem.exists(auto_update_config.script_relpath) then
+    -- Only use cached version if the file still exists on disk
+    if filesystem.exists(auto_update_config.script_path) then
         -- Use ETags to only fetch files if they have been updated
         -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
         local cached_version_id = read_version_id(auto_update_config)
