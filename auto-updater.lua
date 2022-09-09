@@ -54,10 +54,10 @@ local function expand_auto_update_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
     auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
-    auto_update_config.script_filepath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
-    ensure_directory_exists(filesystem.scripts_dir() .. auto_update_config.script_filepath)
+    auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
+    ensure_directory_exists(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
     if auto_update_config.version_file == nil then
-        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_filepath
+        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_reldirpath
         ensure_directory_exists(auto_update_config.version_store_dir)
         auto_update_config.version_file = auto_update_config.version_store_dir .. "/" .. auto_update_config.script_filename .. ".version"
     end
@@ -108,11 +108,14 @@ function run_auto_update(auto_update_config)
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..". Update failed to download.")
     end)
-    -- Use ETags to only fetch files if they have been updated
-    -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
-    local cached_version_id = read_version_id(auto_update_config)
-    if cached_version_id then
-        async_http.add_header("If-None-Match", cached_version_id)
+    -- If file doesn't exist on disk, then fetch it regardless of version cache
+    if filesystem.exists(auto_update_config.script_relpath) then
+        -- Use ETags to only fetch files if they have been updated
+        -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
+        local cached_version_id = read_version_id(auto_update_config)
+        if cached_version_id then
+            async_http.add_header("If-None-Match", cached_version_id)
+        end
     end
     async_http.dispatch()
 end
