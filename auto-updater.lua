@@ -57,21 +57,25 @@ local function restart_script(auto_update_config)
     end
 end
 
-local function ensure_directory_exists(directory)
-    if not filesystem.exists(directory) then
-        filesystem.mkdir(directory)
+local function ensure_directory_exists(path)
+    local dirpath = ""
+    for dirname in path:gmatch("[^/]+") do
+        dirpath = dirpath .. dirname .. "/"
+        if not filesystem.exists(dirpath) then
+            filesystem.mkdir(dirpath)
+        end
     end
 end
 
 local function expand_auto_update_config(auto_update_config)
-    auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("/", "\\")
+    auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
     if auto_update_config.version_file == nil then
-        auto_update_config.script_filename = ("\\\\"..auto_update_config.script_relpath):match("^.*\\\\(.+)$")
-        auto_update_config.script_filepath = ("\\\\"..auto_update_config.script_relpath):match("^(.*)\\\\.+$")
+        auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
+        auto_update_config.script_filepath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
         auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_filepath
         ensure_directory_exists(auto_update_config.version_store_dir)
-        auto_update_config.version_file = auto_update_config.version_store_dir .. "\\" .. auto_update_config.script_filename .. ".version"
+        auto_update_config.version_file = auto_update_config.version_store_dir .. "/" .. auto_update_config.script_filename .. ".version"
     end
     if auto_update_config.source_url == nil then        -- For backward compatibility with older configs
         auto_update_config.source_url = "https://" .. auto_update_config.source_host .. "/" .. auto_update_config.source_path
