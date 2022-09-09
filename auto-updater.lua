@@ -1,6 +1,7 @@
 -- Auto-Updater v1.8
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
+-- https://github.com/hexarobi/stand-lua-auto-updater
 -- Example Usage:
 --    require("auto-updater")
 --    auto_update({
@@ -99,8 +100,9 @@ function run_auto_update(auto_update_config)
             end
         end
         if auto_update_config.auto_restart ~= false then
-            util.toast("Updated "..auto_update_config.script_filename..". Restarting script...")
+            util.toast("Updated "..auto_update_config.script_filename)
             util.yield(2900)    -- Avoid restart loops by giving time for any other scripts to also complete updates
+            util.toast("Restarting "..auto_update_config.script_filename)
             util.restart_script()
         end
     end, function()
