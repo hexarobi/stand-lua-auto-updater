@@ -101,10 +101,8 @@ function run_auto_update(auto_update_config)
             util.toast("Error updating "..auto_update_config.script_filename..". Found empty script file.")
             return false
         end
-        -- Disable expectation of lua comment to download non-lua dependencies
-        if auto_update_config.expect_lua_comment ~= false then
-            -- Lua scripts should begin with a comment but other HTML responses will not
-            if not string_starts(result, "--") then
+        if auto_update_config.verify_file_begins_with ~= nil then
+            if not string_starts(result, auto_update_config.verify_file_begins_with) then
                 util.toast("Error updating "..auto_update_config.script_filename..". Found invalid script file.")
                 return false
             end
@@ -119,7 +117,7 @@ function run_auto_update(auto_update_config)
         end
         if auto_update_config.auto_restart ~= false then
             util.toast("Updated "..auto_update_config.script_filename..". Restarting script...")
-            util.yield(2000)    -- Avoid restart loops by giving time for any other scripts to also complete updates
+            util.yield(2900)    -- Avoid restart loops by giving time for any other scripts to also complete updates
             restart_script(auto_update_config)
         end
     end, function()
