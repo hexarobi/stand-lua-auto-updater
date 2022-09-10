@@ -1,4 +1,4 @@
--- Auto-Updater v1.8
+-- Auto-Updater v1.9
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -64,6 +64,9 @@ local function expand_auto_update_config(auto_update_config)
     if auto_update_config.source_url == nil then        -- For backward compatibility with older configs
         auto_update_config.source_url = "https://" .. auto_update_config.source_host .. "/" .. auto_update_config.source_path
     end
+    if auto_update_config.restart_delay == nil then
+        auto_update_config.restart_delay = 2900
+    end
 end
 
 local function parse_url_host(url)
@@ -82,14 +85,21 @@ function run_auto_update(auto_update_config)
             return false
         end
         if not result or result == "" then
-            util.toast("Error updating "..auto_update_config.script_filename..". Found empty script file.")
+            util.toast("Error updating "..auto_update_config.script_filename..". Found empty file.")
             return false
         end
         if auto_update_config.verify_file_begins_with ~= nil then
             if not string_starts(result, auto_update_config.verify_file_begins_with) then
-                util.toast("Error updating "..auto_update_config.script_filename..". Found invalid script file.")
+                util.toast("Error updating "..auto_update_config.script_filename..". Found invalid file.")
                 return false
             end
+        end
+        if auto_update_config.verify_file_does_not_begin_with == nil then
+            auto_update_config.verify_file_does_not_begin_with = "<"
+        end
+        if string_starts(result, auto_update_config.verify_file_does_not_begin_with) then
+            util.toast("Error updating "..auto_update_config.script_filename..". Found invalid file.")
+            return false
         end
         replace_current_script(auto_update_config, result)
         if headers then
@@ -101,7 +111,7 @@ function run_auto_update(auto_update_config)
         end
         if auto_update_config.auto_restart ~= false then
             util.toast("Updated "..auto_update_config.script_filename..". Restarting...")
-            util.yield(2900)    -- Avoid restart loops by giving time for any other scripts to also complete updates
+            util.yield(auto_update_config.restart_delay)  -- Avoid multiple restarts by giving other scripts time to complete updates
             util.restart_script()
         end
     end, function()
