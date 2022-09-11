@@ -113,9 +113,14 @@ For dependency lib files, graphic files, etc... this can be further configured.
 
 #### `verify_file_begins_with` (Optional, default=nil)
 
-This verifies the file downloaded begins with the specified string before replacing the current file with it.
-This is useful to make sure the script is never replaced by HTTP error messages etc...
-I always start my scripts with a comment including the name of the script, so I just verify the file starts with "--".
+This verifies the file downloaded begins with the specified string.
+This is a protection against any bugs or server errors that might return an invalid file.
+I always start my Lua scripts with a comment including the name of the script, so I add verification the file begins with "--".
+
+#### `verify_file_does_not_begin_with` (Optional, default="<")
+
+This verifies the file downloaded DOES NOT begin with the specified string.
+This is useful as a protection for HTML errors that begin with a "<" character.
 
 #### `auto_restart` (Optional, default=true)
 
