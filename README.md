@@ -6,7 +6,7 @@ A lib file to make auto-updating script files easy. Relies on [ETags](https://de
 
 Add this snippet near the top of your Lua Script, edit the `auto_update_source_url` field with the URL of the raw version of your main script file.
 Make sure your script file begins with a comment (Ex: `-- MyScript`) or modify the `verify_file_begins_with="--"` parameter.
-Thats it! On every run, your script should make a quick version check to GitHub, and if found replace the current script with the updated version and restart.
+Thats it! On every run, your script will make a quick version check to GitHub, and if found replace the current script and restart.
 
 ```lua
 local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua"
