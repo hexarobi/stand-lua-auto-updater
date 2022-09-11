@@ -84,6 +84,7 @@ for _, lib_file in pairs(lib_files) do
     run_auto_update({
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constants/main/"..file_relpath,
         script_relpath=file_relpath,
+        verify_file_begins_with="--",
     })
 end
 
