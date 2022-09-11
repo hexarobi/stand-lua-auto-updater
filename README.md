@@ -4,7 +4,9 @@ A lib file to make auto-updating script files easy. Relies on [ETags](https://de
 
 ## Quick Start
 
-Add this snippet near the top of your Lua Script, edit the `auto_update_source_url` field with the URL of the raw version of your main script file. Thats it!
+Add this snippet near the top of your Lua Script, edit the `auto_update_source_url` field with the URL of the raw version of your main script file.
+Make sure your script file begins with a comment (Ex: `-- MyScript`) or modify the `verify_file_begins_with="--"` parameter.
+Thats it! On every run, your script should make a quick version check to GitHub, and if found replace the current script with the updated version and restart.
 
 ```lua
 local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua"
@@ -20,7 +22,7 @@ if not status then
         end, function() util.toast("Error downloading auto-updater lib. Update failed to download.") end)
     async_http.dispatch() util.yield(3000) require("auto-updater")
 end
-run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH})
+run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
 ```
 
 ### Additional files
@@ -58,6 +60,7 @@ for _, included_song in pairs(included_songs) do
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/"..file_relpath,
         script_relpath=file_relpath,
         auto_restart=false,
+        verify_file_begins_with="{",
     })
 end
 ```
