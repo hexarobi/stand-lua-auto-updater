@@ -135,13 +135,13 @@ auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
 
 ...
 
+-- A Script Meta menu with Release Branch picker
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
 menu.list_select(script_meta_menu, "Release Branch", {}, "Switch release branches to beta test new features.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
     auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
 end)
-
 ```
 
 ## Config Options
