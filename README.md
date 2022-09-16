@@ -126,6 +126,7 @@ local AUTO_UPDATE_BRANCHES = {
 -- When commiting this file to a branch, make sure this index matches the branch
 local SELECTED_BRANCH_INDEX = 1     -- Ex dev value: 2
 
+-- Replaces the normal run_auto_update() call
 local function auto_update_branch(selected_branch)
     local branch_source_url = auto_update_source_url:gsub("/main/", "/"..selected_branch.."/")
     run_auto_update({source_url=branch_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
