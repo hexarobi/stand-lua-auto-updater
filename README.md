@@ -108,6 +108,40 @@ for _, lib_file in pairs(lib_files) do
 end
 ```
 
+#### Example dev branch picker
+
+Sometimes you want to keep a very stable main branch release, while allowing beta testers to acces a development branch.
+This can be accomplished by adding the configuration as shown below.
+
+```lua
+-- Increment script version for every release, to any branch.
+local SCRIPT_VERSION = "1.0"    -- Ex dev value: 2.0b1
+-- Define supported branches for your project, these much match branches created within github
+local AUTO_UPDATE_BRANCHES = {
+    { "main", {}, "More stable, but updatbed less often.", "main", },
+    { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
+}
+-- When this file is run, it will auto-update to the selected branch
+-- When commiting this file to a branch, make sure this index matches the branch
+local SELECTED_BRANCH_INDEX = 1     -- Ex dev value: 2
+
+local function auto_update_branch(selected_branch)
+    local branch_source_url = auto_update_source_url:gsub("/main/", "/"..selected_branch.."/")
+    run_auto_update({source_url=branch_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
+end
+auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
+
+...
+
+local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
+menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
+menu.list_select(script_meta_menu, "Release Branch", {}, "Switch release branches to beta test new features.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
+    if click_type ~= 0 then return end
+    auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
+end)
+
+```
+
 ## Config Options
 
 The `run_auto_update()` function accepts a table of options, which are described here.
