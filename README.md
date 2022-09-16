@@ -10,20 +10,30 @@ Thats it! On every run, your script will make a quick version check to GitHub, a
 
 ```lua
 local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua"
+
+-- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 local status, lib = pcall(require, "auto-updater")
 if not status then
+    auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
     async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-        function(result, headers, status_code) local error_prefix = "Error downloading auto-updater: "
-            if status_code ~= 200 then util.toast(error_prefix..status_code) return false end
-            if not result or result == "" then util.toast(error_prefix.."Found empty file.") return false end
-            local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
-            if file == nil then util.toast(error_prefix.."Could not open file for writing.") return false end
-            file:write(result) file:close() util.toast("Successfully installed auto-updater lib")
-        end, function() util.toast("Error downloading auto-updater lib. Update failed to download.") end)
-    async_http.dispatch() util.yield(3000) require("auto-updater")
+        function(result, headers, status_code)
+            local function parse_auto_update_result(result, headers, status_code)
+                local error_prefix = "Error downloading auto-updater: "
+                if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
+                if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
+                if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
+                file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
+            end
+            auto_update_complete = parse_auto_update_result(result, headers, status_code)
+        end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
+    async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 10) do util.yield(250) i = i + 1 end
+    require("auto-updater")
 end
 run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
 ```
+
+For a more detailed explaination of what this snippet does, see [Quick Start Snippet Explained](#quick-start-snippet-explained)
 
 ### Additional files
 
@@ -99,6 +109,41 @@ for _, lib_file in pairs(lib_files) do
 end
 ```
 
+#### Example dev branch picker
+
+Sometimes you want to keep a very stable main branch release, while allowing beta testers to acces a development branch.
+This can be accomplished by adding the configuration as shown below.
+
+```lua
+-- Increment script version for every release, to any branch.
+local SCRIPT_VERSION = "1.0"    -- Ex dev value: 2.0b1
+-- Define supported branches for your project, these much match branches created within github
+local AUTO_UPDATE_BRANCHES = {
+    { "main", {}, "More stable, but updatbed less often.", "main", },
+    { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
+}
+-- When this file is run, it will auto-update to the selected branch
+-- When commiting this file to a branch, make sure this index matches the branch
+local SELECTED_BRANCH_INDEX = 1     -- Ex dev value: 2
+
+-- Replaces the normal run_auto_update() call
+local function auto_update_branch(selected_branch)
+    local branch_source_url = auto_update_source_url:gsub("/main/", "/"..selected_branch.."/")
+    run_auto_update({source_url=branch_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
+end
+auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
+
+...
+
+-- A Script Meta menu with Release Branch picker
+local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
+menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
+menu.list_select(script_meta_menu, "Release Branch", {}, "Switch release branches to beta test new features.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
+    if click_type ~= 0 then return end
+    auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
+end)
+```
+
 ## Config Options
 
 The `run_auto_update()` function accepts a table of options, which are described here.
@@ -158,4 +203,65 @@ menu.action(menu.my_root(), "Check for Updates", {}, "Attempt to update to lates
         util.toast("Already on latest version, no updates available.")
     end
 end)
+```
+
+## Quick Start Snippet Explained
+
+Unpack the quick start snippet and explain the details of what is happening on each line.
+
+```lua
+-- Attempt to require the auto-updater lib. If successful continue as normal, if not, download and install it.
+local status, lib = pcall(require, "auto-updater")
+if not status then
+    -- Set a flag so we know when download and install has completed
+    auto_update_complete = nil
+    -- Log a message that installation is beginning, both to the screen and to the log file
+    util.toast("Installing auto-updater...", TOAST_ALL)
+    -- Initialize an asynchronous HTTP GET request to the given host, and path.
+    -- When completed, execute either the given success or error function.
+    async_http.init(
+        "raw.githubusercontent.com",    -- GitHub raw content is served from a content delivery network (CDN)
+        "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",   -- Path to the auto-updater script hosted on github
+        function(result, headers, status_code)  -- On Success handler
+            -- Function to parse results and install lib and return success flag, or log a reason and return a failure flag
+            local function parse_auto_update_result(result, headers, status_code)
+                local error_prefix = "Error downloading auto-updater: " -- Many errors will need the same prefix to set it once
+                -- A successful HTTP response is 200, anything else should be treated as an error
+                if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
+                -- A successful file download should have at least SOME content, an empty file should be treated as an error
+                if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                -- Open the script file for writing binary data
+                local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
+                -- A successful update requires writing to the file, a failure to open the file for writing should be treated as an error
+                if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
+                -- Write the script contents to the file
+                file:write(result)
+                -- Close the file
+                file:close()
+                -- Log the successful update
+                util.toast("Successfully installed auto-updater lib", TOAST_ALL)
+                -- Return success flag
+                return true
+            end
+            -- Run parse function and set the update response flag to the return value
+            auto_update_complete = parse_auto_update_result(result, headers, status_code)
+        end,
+        function()  -- On Error Handler
+            util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL)
+        end
+    )
+    -- Begin the HTTP request defined above
+    async_http.dispatch()
+    -- Initialize a counter
+    local i = 1
+    -- Loop until the counter reaches 10, or until a update response flag is set
+    while (auto_update_complete == nil and i < 10) do
+        -- Pause for 250ms before checking again
+        util.yield(250)
+        -- Increment counter
+        i = i + 1
+    end
+    -- The install has completed, or the counter is run out, so require the lib and continue with script execution
+    require("auto-updater")
+end
 ```
