@@ -14,7 +14,7 @@ local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyP
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 local status, auto_updater = pcall(require, "auto-updater")
 if not status then
-    auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
+    local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
     async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
         function(result, headers, status_code)
             local function parse_auto_update_result(result, headers, status_code)
@@ -29,6 +29,7 @@ if not status then
             auto_update_complete = parse_auto_update_result(result, headers, status_code)
         end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
     async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 10) do util.yield(250) i = i + 1 end
+    if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
     auto_updater = require("auto-updater")
 end
 auto_updater.run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
@@ -212,10 +213,10 @@ Unpack the quick start snippet and explain the details of what is happening on e
 
 ```lua
 -- Attempt to require the auto-updater lib. If successful continue as normal, if not, download and install it.
-local status, lib = pcall(require, "auto-updater")
+local status, auto_updater = pcall(require, "auto-updater")
 if not status then
     -- Set a flag so we know when download and install has completed
-    auto_update_complete = nil
+    local auto_update_complete = nil
     -- Log a message that installation is beginning, both to the screen and to the log file
     util.toast("Installing auto-updater...", TOAST_ALL)
     -- Initialize an asynchronous HTTP GET request to the given host, and path.
@@ -257,14 +258,20 @@ if not status then
     async_http.dispatch()
     -- Initialize a counter
     local i = 1
-    -- Loop until the counter reaches 10, or until a update response flag is set
-    while (auto_update_complete == nil and i < 10) do
+    -- Loop until the counter reaches 40, or until a update response flag is set
+    while (auto_update_complete == nil and i < 20) do
         -- Pause for 250ms before checking again
         util.yield(250)
         -- Increment counter
         i = i + 1
     end
-    -- The install has completed, or the counter is run out, so require the lib and continue with script execution
-    require("auto-updater")
+    
+    -- If we have waited 40 loops of 250ms (10 secs) without a reply, then error with a timeout
+    if auto_update_complete == nil then 
+        error("Error downloading auto-updater lib. HTTP Request timeout") 
+    end
+    
+    -- The download and install has completed, so require the lib and continue with script execution
+    auto_updater = require("auto-updater")
 end
 ```
