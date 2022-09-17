@@ -1,10 +1,10 @@
--- Auto-Updater v1.9
+-- Auto-Updater v1.9.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
 -- Example Usage:
---    require("auto-updater")
---    auto_update({
+--    auto_updater = require("auto-updater")
+--    auto_updater.run_auto_update({
 --        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/HornSongs.lua",
 --        script_relpath=SCRIPT_RELPATH,  -- Set by Stand automatically for root script file, or can be used for lib files
 --    })
