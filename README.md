@@ -12,7 +12,7 @@ Thats it! On every run, your script will make a quick version check to GitHub, a
 local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua"
 
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
-local status, lib = pcall(require, "auto-updater")
+local status, auto_updater = pcall(require, "auto-updater")
 if not status then
     auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
     async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
@@ -21,6 +21,7 @@ if not status then
                 local error_prefix = "Error downloading auto-updater: "
                 if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
                 if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                filesystem.mkdir(filesystem.scripts_dir() .. "lib")
                 local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
                 if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
                 file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
@@ -28,9 +29,9 @@ if not status then
             auto_update_complete = parse_auto_update_result(result, headers, status_code)
         end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
     async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 10) do util.yield(250) i = i + 1 end
-    require("auto-updater")
+    auto_updater = require("auto-updater")
 end
-run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
+auto_updater.run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
 ```
 
 For a more detailed explaination of what this snippet does, see [Quick Start Snippet Explained](#quick-start-snippet-explained)
@@ -230,6 +231,8 @@ if not status then
                 if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
                 -- A successful file download should have at least SOME content, an empty file should be treated as an error
                 if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                -- Make sure the lib folder is created if it doesnt exist already
+                filesystem.mkdir(filesystem.scripts_dir() .. "lib")
                 -- Open the script file for writing binary data
                 local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
                 -- A successful update requires writing to the file, a failure to open the file for writing should be treated as an error
