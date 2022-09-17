@@ -32,6 +32,7 @@ if not status then
     if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
     auto_updater = require("auto-updater")
 end
+if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again", TOAST_ALL) end
 auto_updater.run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
 ```
 
@@ -45,7 +46,7 @@ will auto-install and auto-update as needed. The auto-updater even uses this int
 #### Example single lib file
 
 ```lua
-run_auto_update({
+auto_updater.run_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
     verify_file_begins_with="--"
@@ -68,7 +69,7 @@ local included_songs = {
 }
 for _, included_song in pairs(included_songs) do
     local file_relpath = "store/HornSongs/songs/"..included_song..".horn"
-    run_auto_update({
+    auto_updater.run_auto_update({
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/"..file_relpath,
         script_relpath=file_relpath,
         auto_restart=false,
@@ -93,7 +94,7 @@ local lib_files = {
 -- Call auto-updater for each file
 for _, lib_file in pairs(lib_files) do
     local file_relpath = "lib/"..lib_file..".lua"
-    run_auto_update({
+    auto_updater.run_auto_update({
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constants/main/"..file_relpath,
         script_relpath=file_relpath,
         verify_file_begins_with="--",
@@ -131,7 +132,7 @@ local SELECTED_BRANCH_INDEX = 1     -- Ex dev value: 2
 -- Replaces the normal run_auto_update() call
 local function auto_update_branch(selected_branch)
     local branch_source_url = auto_update_source_url:gsub("/main/", "/"..selected_branch.."/")
-    run_auto_update({source_url=branch_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
+    auto_updater.run_auto_update({source_url=branch_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
 end
 auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
 
@@ -199,7 +200,7 @@ a menu item to kick off an update check.
 ```lua
 -- Manually check for updates with a menu option
 menu.action(menu.my_root(), "Check for Updates", {}, "Attempt to update to latest version", function()
-    local updated = run_auto_update(auto_update_config)
+    local updated = auto_updater.run_auto_update(auto_update_config)
     -- If update is applied script will be restarted so no response will return
     if not updated then
         util.toast("Already on latest version, no updates available.")
@@ -274,4 +275,10 @@ if not status then
     -- The download and install has completed, so require the lib and continue with script execution
     auto_updater = require("auto-updater")
 end
+
+-- If the require loaded a boolean instead of a table, something with the auto-updater file is corrupted and needs to be re-downloaded
+if auto_updater == true then
+    error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again", TOAST_ALL)
+end
+
 ```
