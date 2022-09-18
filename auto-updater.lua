@@ -1,4 +1,4 @@
--- Auto-Updater v1.9.2
+-- Auto-Updater v1.10
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -57,6 +57,9 @@ local function expand_auto_update_config(auto_update_config)
     if auto_update_config.restart_delay == nil then
         auto_update_config.restart_delay = 2900
     end
+    if auto_update_config.http_timeout == nil then
+        auto_update_config.http_timeout = 10000
+    end
 end
 
 local function parse_url_host(url)
@@ -69,18 +72,20 @@ end
 
 function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
+    local is_download_complete
     async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
         if status_code == 304 then
             -- No update found
-            return false
+            is_download_complete = true
+            return true
         end
         if not result or result == "" then
-            util.toast("Error updating "..auto_update_config.script_filename..". Found empty file.")
+            util.toast("Error updating "..auto_update_config.script_filename..": Empty content", TOAST_ALL)
             return false
         end
         if auto_update_config.verify_file_begins_with ~= nil then
             if not string_starts(result, auto_update_config.verify_file_begins_with) then
-                util.toast("Error updating "..auto_update_config.script_filename..". Found invalid file.")
+                util.toast("Error updating "..auto_update_config.script_filename..": Found invalid content", TOAST_ALL)
                 return false
             end
         end
@@ -88,7 +93,7 @@ function run_auto_update(auto_update_config)
             auto_update_config.verify_file_does_not_begin_with = "<"
         end
         if string_starts(result, auto_update_config.verify_file_does_not_begin_with) then
-            util.toast("Error updating "..auto_update_config.script_filename..". Found invalid file.")
+            util.toast("Error updating "..auto_update_config.script_filename..": Found invalid content", TOAST_ALL)
             return false
         end
         replace_current_script(auto_update_config, result)
@@ -99,13 +104,14 @@ function run_auto_update(auto_update_config)
                 end
             end
         end
+        is_download_complete = true
         if auto_update_config.auto_restart ~= false then
-            util.toast("Updated "..auto_update_config.script_filename..". Restarting...")
+            util.toast("Updated "..auto_update_config.script_filename..". Restarting...", TOAST_ALL)
             util.yield(auto_update_config.restart_delay)  -- Avoid multiple restarts by giving other scripts time to complete updates
             util.restart_script()
         end
     end, function()
-        util.toast("Error updating "..auto_update_config.script_filename..". Update failed to download.")
+        util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
     end)
     -- Only use cached version if the file still exists on disk
     if filesystem.exists(auto_update_config.script_path) then
@@ -117,9 +123,32 @@ function run_auto_update(auto_update_config)
         end
     end
     async_http.dispatch()
+    local i = 1
+    while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
+        util.yield(250)
+        i = i + 1
+    end
+    if is_download_complete == nil then
+        util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
+    end
+    return true
 end
 
--- Wrapper for old function name
+local function require_with_auto_update(auto_update_config)
+    auto_update_config.lib_require_path = auto_update_config.script_relpath:gsub(".lua", "")
+    local status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
+    if not status then
+        if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
+        run_auto_update(auto_update_config)
+        status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
+        if not status then
+            error("Failed to install auto-loaded lib: "..auto_update_config.lib_relpath)
+        end
+    end
+    return loaded_lib
+end
+
+-- Wrapper for old function names
 function auto_update(auto_update_config)
     run_auto_update(auto_update_config)
 end
@@ -131,5 +160,6 @@ run_auto_update({
 })
 
 return {
-    run_auto_update = run_auto_update
+    run_auto_update = run_auto_update,
+    require_with_auto_update = require_with_auto_update,
 }
