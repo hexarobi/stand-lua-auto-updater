@@ -78,38 +78,16 @@ for _, included_song in pairs(included_songs) do
 end
 ```
 
-#### Example multiple `require()` script files
+#### Example requiring script files
 
-`run_auto_update()` does NOT require the files, just downloads/updates them, so to use the updated files you must still require them separately. 
-You can optionally `util.yield()` between running run_auto_update() and require() to allow any downloads to complete to avoid potential error messages.
-You can modify the time the script will wait after an update before restarting with the `restart_delay` parameter.
+Install and/or update the lib file, and then require it using the helper function auto_updater.require_with_auto_update()
 
 ```lua
--- Define list of lib files
-local lib_files = {
-  "vehicle-constants",
-  "vehicle-hashes",
-}
-
--- Call auto-updater for each file
-for _, lib_file in pairs(lib_files) do
-    local file_relpath = "lib/"..lib_file..".lua"
-    auto_updater.run_auto_update({
-        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constants/main/"..file_relpath,
-        script_relpath=file_relpath,
-        verify_file_begins_with="--",
-    })
-end
-
--- You can optionally pause here for the `restart_delay` period to avoid any misleading errors while the scripts are updating
--- If updates are found the script will be auto-restarted but any error messages in between can lead to confusion
--- The downside is your script will always take this additional time during startup
--- util.yield(3000)
-
--- Updates have finished applying and now the script is running normally, so require the files and continue as normal
-for _, lib_file in pairs(lib_files) do
-    require(lib_file)
-end
+local constructor_lib = auto_updater.require_with_auto_update({
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
+    script_relpath="lib/constructor/constructor_lib.lua",
+    verify_file_begins_with="--",
+})
 ```
 
 #### Example dev branch picker
@@ -162,6 +140,10 @@ This MUST point to a CDN host that supports ETags, such as GitHub, or files will
 The relative path from the `Stand/Lua Scripts/` directory to the the file to be added or updated by the source file.
 For main scripts, the Stand built-in `SCRIPT_RELPATH` will work without any modification.
 For dependency lib files, graphic files, etc... this can be further configured.
+
+#### `http_timeout` (Optional, default=10000)
+
+The HTTP timeout for loading the script, in miliseconds. Defaults to 10 seconds.
 
 #### `verify_file_begins_with` (Optional, default=nil)
 
