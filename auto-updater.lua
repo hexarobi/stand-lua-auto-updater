@@ -1,10 +1,10 @@
--- Auto-Updater v1.9
+-- Auto-Updater v1.9.2
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
 -- Example Usage:
---    require("auto-updater")
---    auto_update({
+--    auto_updater = require("auto-updater")
+--    auto_updater.run_auto_update({
 --        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/HornSongs.lua",
 --        script_relpath=SCRIPT_RELPATH,  -- Set by Stand automatically for root script file, or can be used for lib files
 --    })
@@ -40,25 +40,15 @@ local function replace_current_script(auto_update_config, new_script)
     file:close()
 end
 
-local function ensure_directory_exists(path)
-    local dirpath = ""
-    for dirname in path:gmatch("[^/]+") do
-        dirpath = dirpath .. dirname .. "/"
-        if not filesystem.exists(dirpath) then
-            filesystem.mkdir(dirpath)
-        end
-    end
-end
-
 local function expand_auto_update_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
     auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
     auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
     auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
-    ensure_directory_exists(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
+    filesystem.mkdirs(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
     if auto_update_config.version_file == nil then
         auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_reldirpath
-        ensure_directory_exists(auto_update_config.version_store_dir)
+        filesystem.mkdirs(auto_update_config.version_store_dir)
         auto_update_config.version_file = auto_update_config.version_store_dir .. "/" .. auto_update_config.script_filename .. ".version"
     end
     if auto_update_config.source_url == nil then        -- For backward compatibility with older configs
@@ -139,3 +129,7 @@ run_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
 })
+
+return {
+    run_auto_update = run_auto_update
+}
