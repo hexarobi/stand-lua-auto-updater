@@ -155,7 +155,7 @@ end
 
 -- Self-apply auto-update to this lib file
 run_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/v1.10/auto-updater.lua",
     script_relpath="lib/auto-updater.lua",
 })
 
