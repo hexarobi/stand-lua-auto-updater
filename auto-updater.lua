@@ -131,7 +131,6 @@ function run_auto_update(auto_update_config)
     if is_download_complete == nil then
         util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
     end
-    return true
 end
 
 local function require_with_auto_update(auto_update_config)
@@ -154,10 +153,12 @@ function auto_update(auto_update_config)
 end
 
 -- Self-apply auto-update to this lib file
-run_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/v1.10/auto-updater.lua",
-    script_relpath="lib/auto-updater.lua",
-})
+util.create_thread(function()
+    run_auto_update({
+        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/v1.10/auto-updater.lua",
+        script_relpath="lib/auto-updater.lua",
+    })
+end)
 
 return {
     run_auto_update = run_auto_update,
