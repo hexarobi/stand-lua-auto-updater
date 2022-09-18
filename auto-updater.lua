@@ -1,4 +1,4 @@
--- Auto-Updater v1.10.1
+-- Auto-Updater v1.11
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -60,6 +60,9 @@ local function expand_auto_update_config(auto_update_config)
     if auto_update_config.http_timeout == nil then
         auto_update_config.http_timeout = 10000
     end
+    if auto_update_config.expected_status_code == nil then
+        auto_update_config.expected_status_code = 200
+    end
 end
 
 local function parse_url_host(url)
@@ -78,6 +81,10 @@ function run_auto_update(auto_update_config)
             -- No update found
             is_download_complete = true
             return true
+        end
+        if status_code ~= auto_update_config.expected_status_code then
+            util.toast("Error updating "..auto_update_config.script_filename..": Unexpected status code: "..status_code, TOAST_ALL)
+            return false
         end
         if not result or result == "" then
             util.toast("Error updating "..auto_update_config.script_filename..": Empty content", TOAST_ALL)
@@ -157,6 +164,7 @@ util.create_thread(function()
     run_auto_update({
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
         script_relpath="lib/auto-updater.lua",
+        verify_file_begins_with="--",
     })
 end)
 
