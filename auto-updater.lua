@@ -1,4 +1,4 @@
--- Auto-Updater v1.12.1
+-- Auto-Updater v1.13
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -73,27 +73,30 @@ local function parse_url_path(url)
     return "/"..url:match("://.-/(.*)")
 end
 
-function run_auto_update(auto_update_config)
-    expand_auto_update_config(auto_update_config)
-    local is_download_complete
+local is_download_complete
+
+local function process_auto_update(auto_update_config)
     async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
         if status_code == 304 then
             -- No update found
             is_download_complete = true
-            return true
+            return
         end
         if status_code ~= auto_update_config.expected_status_code then
             util.toast("Error updating "..auto_update_config.script_filename..": Unexpected status code: "..status_code, TOAST_ALL)
-            return false
+            is_download_complete = false
+            return
         end
         if not result or result == "" then
             util.toast("Error updating "..auto_update_config.script_filename..": Empty content", TOAST_ALL)
-            return false
+            is_download_complete = false
+            return
         end
         if auto_update_config.verify_file_begins_with ~= nil then
             if not string_starts(result, auto_update_config.verify_file_begins_with) then
                 util.toast("Error updating "..auto_update_config.script_filename..": Found invalid content", TOAST_ALL)
-                return false
+                is_download_complete = false
+                return
             end
         end
         if auto_update_config.verify_file_does_not_begin_with == nil then
@@ -101,7 +104,8 @@ function run_auto_update(auto_update_config)
         end
         if string_starts(result, auto_update_config.verify_file_does_not_begin_with) then
             util.toast("Error updating "..auto_update_config.script_filename..": Found invalid content", TOAST_ALL)
-            return false
+            is_download_complete = false
+            return
         end
         replace_current_script(auto_update_config, result)
         if headers then
@@ -116,6 +120,8 @@ function run_auto_update(auto_update_config)
             util.toast("Updated "..auto_update_config.script_filename..". Restarting...", TOAST_ALL)
             util.yield(auto_update_config.restart_delay)  -- Avoid multiple restarts by giving other scripts time to complete updates
             util.restart_script()
+        else
+            util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
         end
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
@@ -130,6 +136,14 @@ function run_auto_update(auto_update_config)
         end
     end
     async_http.dispatch()
+end
+
+function run_auto_update(auto_update_config)
+    expand_auto_update_config(auto_update_config)
+    is_download_complete = nil
+    util.create_thread(function()
+        process_auto_update(auto_update_config)
+    end)
     local i = 1
     while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
         util.yield(250)
@@ -146,7 +160,8 @@ local function require_with_auto_update(auto_update_config)
     auto_update_config.lib_require_path = auto_update_config.script_relpath:gsub(".lua", "")
     if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
     local status, loaded_lib
-    if (run_auto_update(auto_update_config)) then
+    local auto_config_load = run_auto_update(auto_update_config)
+    if (auto_config_load) then
         status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
     end
     if not status then
@@ -173,4 +188,3 @@ return {
     run_auto_update = run_auto_update,
     require_with_auto_update = require_with_auto_update,
 }
-
