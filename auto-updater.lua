@@ -1,4 +1,4 @@
--- Auto-Updater v1.3
+-- Auto-Updater v1.3.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -211,20 +211,21 @@ end
 
 function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
-    if is_due_for_update_check(auto_update_config) then
-        is_download_complete = nil
-        util.create_thread(function()
-            process_auto_update(auto_update_config)
-        end)
-        local i = 1
-        while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
-            util.yield(250)
-            i = i + 1
-        end
-        if is_download_complete == nil then
-            util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
-            return false
-        end
+    if not is_due_for_update_check(auto_update_config) then
+        return nil
+    end
+    is_download_complete = nil
+    util.create_thread(function()
+        process_auto_update(auto_update_config)
+    end)
+    local i = 1
+    while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
+        util.yield(250)
+        i = i + 1
+    end
+    if is_download_complete == nil then
+        util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
+        return false
     end
     return true
 end
@@ -238,7 +239,7 @@ local function require_with_auto_update(auto_update_config)
     if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
     local status, loaded_lib
     local auto_config_load = run_auto_update(auto_update_config)
-    if (auto_config_load) then
+    if (auto_config_load ~= false) then
         status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
     end
     if not status then
