@@ -1,4 +1,4 @@
--- Auto-Updater v1.2
+-- Auto-Updater v1.3
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -33,6 +33,11 @@ end
 
 local function parse_url_path(url)
     return "/"..url:match("://.-/(.*)")
+end
+
+local function modify_github_url_branch(url, switch_to_branch)
+    local root, path = url:match("^(https://raw.githubusercontent.com/[^/]+/[^/]+)/[^/]+/([^/].*)$")
+    return root.."/"..switch_to_branch.."/"..path
 end
 
 ---
@@ -107,6 +112,9 @@ local function expand_auto_update_config(auto_update_config)
     end
     if auto_update_config.source_url == nil then        -- For backward compatibility with older configs
         auto_update_config.source_url = "https://" .. auto_update_config.source_host .. "/" .. auto_update_config.source_path
+    end
+    if auto_update_config.switch_to_branch ~= nil then
+        auto_update_config.source_url = modify_github_url_branch(auto_update_config.source_url, auto_update_config.switch_to_branch)
     end
     if auto_update_config.restart_delay == nil then
         auto_update_config.restart_delay = 2900
