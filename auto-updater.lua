@@ -254,7 +254,7 @@ end
 
 util.create_thread(function()
     run_auto_update({
-        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/v1.2/auto-updater.lua",
+        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
         script_relpath="lib/auto-updater.lua",
         verify_file_begins_with="--",
     })
