@@ -53,63 +53,16 @@ auto_updater.run_auto_update({
 })
 ```
 
-#### Example multiple files
-
-Example from HornSongs, loading many `*.horn` files into the store folder.
-If the file isn't used at startup time you can set `auto_restart=false` to avoid restarting after an update.
-These horn files are only used when a player selects them, so I set `auto_restart=false`.
-
-```lua
-local included_songs = {
-    "au_claire_de_la_lune",
-    "hot_cross_buns",
-    "ode_to_joy",
-    "scales",
-    "twinkle_twinkle_little_star",
-}
-for _, included_song in pairs(included_songs) do
-    local file_relpath = "store/HornSongs/songs/"..included_song..".horn"
-    auto_updater.run_auto_update({
-        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/"..file_relpath,
-        script_relpath=file_relpath,
-        auto_restart=false,
-        verify_file_begins_with="{",
-    })
-end
-```
-
 #### Example multiple `require()` script files
 
-`run_auto_update()` does NOT require the files, just downloads/updates them, so to use the updated files you must still require them separately. 
-You can optionally `util.yield()` between running run_auto_update() and require() to allow any downloads to complete to avoid potential error messages.
-You can modify the time the script will wait after an update before restarting with the `restart_delay` parameter.
+The helper function `require_with_auto_update` is used to both auto-update a file and require it for use in your script at the same time.
 
 ```lua
--- Define list of lib files
-local lib_files = {
-  "vehicle-constants",
-  "vehicle-hashes",
-}
-
--- Call auto-updater for each file
-for _, lib_file in pairs(lib_files) do
-    local file_relpath = "lib/"..lib_file..".lua"
-    auto_updater.run_auto_update({
-        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constants/main/"..file_relpath,
-        script_relpath=file_relpath,
-        verify_file_begins_with="--",
-    })
-end
-
--- You can optionally pause here for the `restart_delay` period to avoid any misleading errors while the scripts are updating
--- If updates are found the script will be auto-restarted but any error messages in between can lead to confusion
--- The downside is your script will always take this additional time during startup
--- util.yield(3000)
-
--- Updates have finished applying and now the script is running normally, so require the files and continue as normal
-for _, lib_file in pairs(lib_files) do
-    require(lib_file)
-end
+local inspect = auto_updater.require_with_auto_update({
+    source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
+    script_relpath="lib/inspect.lua",
+    verify_file_begins_with="local",
+})
 ```
 
 #### Example dev branch picker
@@ -141,9 +94,11 @@ auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
 -- A Script Meta menu with Release Branch picker
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
-menu.list_select(script_meta_menu, "Release Branch", {}, "Switch release branches to beta test new features.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
+menu.list_select(script_meta_menu, "Release Branch", {}, "Switch from main to dev to get cutting edge updates, but also potentially more bugs.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
-    auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
+    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
+    auto_update_config.check_interval = 0
+    auto_updater.run_auto_update(auto_update_config)
 end)
 ```
 
@@ -163,6 +118,11 @@ The relative path from the `Stand/Lua Scripts/` directory to the the file to be 
 For main scripts, the Stand built-in `SCRIPT_RELPATH` will work without any modification.
 For dependency lib files, graphic files, etc... this can be further configured.
 
+#### `check_interval` (Optional, default=86400)
+
+The number of seconds to wait after a success auto-update check, before doing another on startup.
+Defaults to daily update checks.
+
 #### `verify_file_begins_with` (Optional, default=nil)
 
 This verifies the file downloaded begins with the specified string.
@@ -173,6 +133,14 @@ I always start my Lua scripts with a comment including the name of the script, s
 
 This verifies the file downloaded DOES NOT begin with the specified string.
 This is useful as a protection for HTML errors that begin with a "<" character.
+
+#### `http_timeout` (Optional, default=10000)
+
+The HTTP timeout for loading the script, in miliseconds. Defaults to 10 seconds.
+
+#### `expected_status_code` (Optional, default=200)
+
+This verfies the updated data was returned with a 200 (Successful) status code
 
 #### `auto_restart` (Optional, default=true)
 
@@ -199,12 +167,10 @@ a menu item to kick off an update check.
 
 ```lua
 -- Manually check for updates with a menu option
-menu.action(menu.my_root(), "Check for Updates", {}, "Attempt to update to latest version", function()
-    local updated = auto_updater.run_auto_update(auto_update_config)
-    -- If update is applied script will be restarted so no response will return
-    if not updated then
-        util.toast("Already on latest version, no updates available.")
-    end
+menu.action(script_meta_menu, "Check for Update", {}, "The script will automatically check for updates at most daily, but you can manually check using this option anytime.", function()
+    auto_update_config.check_interval = 0
+    util.toast("Checking for updates")
+    auto_updater.run_auto_update(auto_update_config)
 end)
 ```
 
@@ -260,7 +226,7 @@ if not status then
     -- Initialize a counter
     local i = 1
     -- Loop until the counter reaches 40, or until a update response flag is set
-    while (auto_update_complete == nil and i < 20) do
+    while (auto_update_complete == nil and i < 40) do
         -- Pause for 250ms before checking again
         util.yield(250)
         -- Increment counter
