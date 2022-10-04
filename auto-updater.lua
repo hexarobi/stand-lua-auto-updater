@@ -1,4 +1,4 @@
--- Auto-Updater v1.3.3
+-- Auto-Updater v1.3.4
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -14,10 +14,8 @@
 ---
 
 util.ensure_package_is_installed('lua/json')
-local json = require("json")
-
---local status, inspect = pcall(require, "inspect")
---if not status then util.toast("Could not load inspect lib.", TOAST_ALL) end
+local status, json = pcall(require, "json")
+if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 ---
 --- Utilities
@@ -277,4 +275,3 @@ return {
     run_auto_update = run_auto_update,
     require_with_auto_update = require_with_auto_update,
 }
-
