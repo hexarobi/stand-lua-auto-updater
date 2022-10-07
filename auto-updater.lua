@@ -1,4 +1,4 @@
--- Auto-Updater v1.3.4
+-- Auto-Updater v1.3.5
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -201,6 +201,7 @@ end
 local function is_due_for_update_check(auto_update_config)
     return auto_update_config.version_data.last_checked == nil
         or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
+        or (not filesystem.exists(auto_update_config.script_path))
 end
 
 ---
