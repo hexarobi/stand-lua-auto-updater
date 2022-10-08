@@ -1,4 +1,4 @@
--- Auto-Updater v1.3.5
+-- Auto-Updater v1.4
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -14,8 +14,8 @@
 ---
 
 util.ensure_package_is_installed('lua/json')
-local status, json = pcall(require, "json")
-if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+local status_json, json = pcall(require, "json")
+if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 ---
 --- Utilities
@@ -115,7 +115,7 @@ local function expand_auto_update_config(auto_update_config)
         auto_update_config.source_url = modify_github_url_branch(auto_update_config.source_url, auto_update_config.switch_to_branch)
     end
     if auto_update_config.restart_delay == nil then
-        auto_update_config.restart_delay = 2900
+        auto_update_config.restart_delay = 500
     end
     if auto_update_config.http_timeout == nil then
         auto_update_config.http_timeout = 10000
@@ -205,31 +205,6 @@ local function is_due_for_update_check(auto_update_config)
 end
 
 ---
---- Auto Update Check
----
-
-function run_auto_update(auto_update_config)
-    expand_auto_update_config(auto_update_config)
-    if not is_due_for_update_check(auto_update_config) then
-        return nil
-    end
-    is_download_complete = nil
-    util.create_thread(function()
-        process_auto_update(auto_update_config)
-    end)
-    local i = 1
-    while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
-        util.yield(250)
-        i = i + 1
-    end
-    if is_download_complete == nil then
-        util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
-        return false
-    end
-    return true
-end
-
----
 --- Require with Auto Update (for libs)
 ---
 
@@ -246,6 +221,43 @@ local function require_with_auto_update(auto_update_config)
     end
     return loaded_lib
 end
+
+---
+--- Auto Update Check
+---
+
+function run_auto_update(auto_update_config)
+    expand_auto_update_config(auto_update_config)
+    local parent_updated = false
+    if is_due_for_update_check(auto_update_config) then
+        is_download_complete = nil
+        util.create_thread(function()
+            process_auto_update(auto_update_config)
+        end)
+        local i = 1
+        while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
+            util.yield(250)
+            i = i + 1
+        end
+        if is_download_complete == nil then
+            util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
+            return false
+        end
+        parent_updated = true
+    end
+    if auto_update_config.dependencies ~= nil then
+        for _, dependency in pairs(auto_update_config.dependencies) do
+            if parent_updated then auto_update_config.check_interval = 0 end
+            if dependency.script_relpath:match("(.*)[.]lua$") then
+                dependency.loaded_lib = require_with_auto_update(dependency)
+            else
+                dependency.loaded_lib = run_auto_update(dependency)
+            end
+        end
+    end
+    return true
+end
+
 
 ---
 --- Legacy Compatibility
