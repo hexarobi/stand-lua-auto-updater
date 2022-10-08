@@ -1,4 +1,4 @@
--- Auto-Updater v1.4
+-- Auto-Updater v1.4.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -177,13 +177,7 @@ local function process_auto_update(auto_update_config)
             end
         end
         is_download_complete = true
-        if auto_update_config.auto_restart ~= false then
-            util.toast("Updated "..auto_update_config.script_filename..". Restarting...", TOAST_ALL)
-            util.yield(auto_update_config.restart_delay)  -- Avoid multiple restarts by giving other scripts time to complete updates
-            util.restart_script()
-        else
-            util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
-        end
+        util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
     end)
@@ -254,6 +248,11 @@ function run_auto_update(auto_update_config)
                 dependency.loaded_lib = run_auto_update(dependency)
             end
         end
+    end
+    if parent_updated and auto_update_config.auto_restart ~= false then
+        util.toast("Restarting...", TOAST_ALL)
+        util.yield(auto_update_config.restart_delay)  -- Avoid multiple restarts by giving other scripts time to complete updates
+        util.restart_script()
     end
     return true
 end
