@@ -1,4 +1,4 @@
--- Auto-Updater v1.4.1
+-- Auto-Updater v1.5
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -57,7 +57,6 @@ local function load_version_data(auto_update_config)
         local status, version_data = pcall(json.decode, version)
         if not status and type(version) == "string" then
             version_data = {version_id=version}
-            util.toast("Created version data from legacy version_id file", TOAST_ALL)
         end
         auto_update_config.version_data = version_data
         --util.toast("Loaded version data "..inspect(auto_update_config.version_data), TOAST_ALL)
@@ -74,9 +73,12 @@ local function update_version_last_checked_time(auto_update_config)
 end
 
 local function update_version_id(auto_update_config, version_id)
+    local script_version = auto_update_config.version_data.script_version
     load_version_data(auto_update_config)
     auto_update_config.version_data.version_id = version_id
+    auto_update_config.version_data.fresh_update = true
     auto_update_config.version_data.last_checked = util.current_unix_time_seconds()
+    auto_update_config.version_data.script_version = script_version
     save_version_data(auto_update_config)
 end
 
@@ -91,6 +93,11 @@ local function replace_current_script(auto_update_config, new_script)
     end
     file:write(new_script.."\n")
     file:close()
+    auto_update_config.script_updated = true
+end
+
+local function parse_script_version(auto_update_config, script)
+    auto_update_config.version_data.script_version = script:match('SCRIPT_VERSION = "([^ ]+)"')
 end
 
 ---
@@ -114,9 +121,9 @@ local function expand_auto_update_config(auto_update_config)
     if auto_update_config.switch_to_branch ~= nil then
         auto_update_config.source_url = modify_github_url_branch(auto_update_config.source_url, auto_update_config.switch_to_branch)
     end
-    if auto_update_config.restart_delay == nil then
-        auto_update_config.restart_delay = 500
-    end
+    --if auto_update_config.restart_delay == nil then
+    --    auto_update_config.restart_delay = 500
+    --end
     if auto_update_config.http_timeout == nil then
         auto_update_config.http_timeout = 10000
     end
@@ -169,6 +176,7 @@ local function process_auto_update(auto_update_config)
             return
         end
         replace_current_script(auto_update_config, result)
+        parse_script_version(auto_update_config, result)
         if headers then
             for header_key, header_value in pairs(headers) do
                 if header_key == "ETag" then
@@ -193,9 +201,12 @@ local function process_auto_update(auto_update_config)
 end
 
 local function is_due_for_update_check(auto_update_config)
-    return auto_update_config.version_data.last_checked == nil
+    return (
+        auto_update_config.version_data.last_checked == nil
+        or auto_update_config.check_interval == 0
         or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
         or (not filesystem.exists(auto_update_config.script_path))
+    )
 end
 
 ---
@@ -204,7 +215,7 @@ end
 
 local function require_with_auto_update(auto_update_config)
     auto_update_config.lib_require_path = auto_update_config.script_relpath:gsub("[.]lua$", "")
-    if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
+    --if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
     local status, loaded_lib
     local auto_config_load = run_auto_update(auto_update_config)
     if (auto_config_load ~= false) then
@@ -213,6 +224,7 @@ local function require_with_auto_update(auto_update_config)
     if not status then
         error("Failed to load auto-loaded lib: "..auto_update_config.script_relpath.."\n"..tostring(loaded_lib))
     end
+    auto_update_config.loaded_lib = loaded_lib
     return loaded_lib
 end
 
@@ -222,7 +234,7 @@ end
 
 function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
-    local parent_updated = false
+    --util.toast("Running "..auto_update_config.script_filename.."...", TOAST_ALL)
     if is_due_for_update_check(auto_update_config) then
         is_download_complete = nil
         util.create_thread(function()
@@ -237,22 +249,40 @@ function run_auto_update(auto_update_config)
             util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout", TOAST_ALL)
             return false
         end
-        parent_updated = true
-    end
-    if auto_update_config.dependencies ~= nil then
-        for _, dependency in pairs(auto_update_config.dependencies) do
-            if parent_updated then auto_update_config.check_interval = 0 end
-            if dependency.script_relpath:match("(.*)[.]lua$") then
-                dependency.loaded_lib = require_with_auto_update(dependency)
-            else
-                dependency.loaded_lib = run_auto_update(dependency)
-            end
+        if (auto_update_config.script_updated and not auto_update_config.is_dependency) and auto_update_config.auto_restart ~= false then
+            --util.toast("Restarting...", TOAST_ALL)
+            if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
+            util.restart_script()
+            return
         end
     end
-    if parent_updated and auto_update_config.auto_restart ~= false then
-        util.toast("Restarting...", TOAST_ALL)
-        util.yield(auto_update_config.restart_delay)  -- Avoid multiple restarts by giving other scripts time to complete updates
+    local dependency_updated = false
+    if auto_update_config.dependencies ~= nil then
+        for _, dependency in pairs(auto_update_config.dependencies) do
+            dependency.is_dependency = true
+            if (is_due_for_update_check(auto_update_config) or auto_update_config.script_updated or auto_update_config.version_data.fresh_update) then dependency.check_interval = 0 end
+            if dependency.script_relpath:match("(.*)[.]lua$") then
+                require_with_auto_update(dependency)
+            else
+                run_auto_update(dependency)
+            end
+            if dependency.script_updated then dependency_updated = true end
+        end
+    end
+    if (dependency_updated) and auto_update_config.auto_restart ~= false then
+        --util.toast("Dependency updated. Restarting...", TOAST_ALL)
+        if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
         util.restart_script()
+        return
+    else
+        if auto_update_config.version_data.fresh_update and not auto_update_config.is_dependency then
+            -- TODO: Show changelog
+            if auto_update_config.version_data.script_version then
+                util.toast("Updated "..auto_update_config.script_filename.." to "..tostring(auto_update_config.version_data.script_version), TOAST_ALL)
+            end
+            auto_update_config.version_data.fresh_update = false
+            save_version_data(auto_update_config)
+        end
     end
     return true
 end
