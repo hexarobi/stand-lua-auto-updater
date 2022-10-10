@@ -1,4 +1,4 @@
--- Auto-Updater v1.5
+-- Auto-Updater v1.5.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -216,13 +216,10 @@ end
 local function require_with_auto_update(auto_update_config)
     auto_update_config.lib_require_path = auto_update_config.script_relpath:gsub("[.]lua$", "")
     --if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
-    local status, loaded_lib
-    local auto_config_load = run_auto_update(auto_update_config)
-    if (auto_config_load ~= false) then
-        status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
-    end
-    if not status then
-        error("Failed to load auto-loaded lib: "..auto_update_config.script_relpath.."\n"..tostring(loaded_lib))
+    run_auto_update(auto_update_config)
+    local auto_loaded_lib_status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
+    if not auto_loaded_lib_status then
+        error("Failed to load required file: "..auto_update_config.script_relpath.."\n"..tostring(loaded_lib))
     end
     auto_update_config.loaded_lib = loaded_lib
     return loaded_lib
