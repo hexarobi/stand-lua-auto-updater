@@ -1,4 +1,4 @@
--- Auto-Updater v1.5.1
+-- Auto-Updater v1.5.2
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -189,8 +189,8 @@ local function process_auto_update(auto_update_config)
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
     end)
-    -- Only use cached version if the file still exists on disk
-    if filesystem.exists(auto_update_config.script_path) then
+    -- Only use cached version if this is not a clean reinstall, and if the file still exists on disk
+    if auto_update_config.clean_reinstall ~= true and filesystem.exists(auto_update_config.script_path) then
         -- Use ETags to only fetch files if they have been updated
         -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
         if auto_update_config.version_data.version_id then
@@ -202,7 +202,8 @@ end
 
 local function is_due_for_update_check(auto_update_config)
     return (
-        auto_update_config.version_data.last_checked == nil
+        auto_update_config.clean_reinstall == true
+        or auto_update_config.version_data.last_checked == nil
         or auto_update_config.check_interval == 0
         or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
         or (not filesystem.exists(auto_update_config.script_path))
