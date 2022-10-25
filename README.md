@@ -43,7 +43,7 @@ For a more detailed explaination of what this snippet does, see [Quick Start Sni
 If your project depends on additional files, you can setup auto_update calls for each file so that they 
 will auto-install and auto-update as needed. The auto-updater even uses this internally on itself to apply updates.
 
-#### Example single lib file
+#### Example auto-updating of single file
 
 ```lua
 auto_updater.run_auto_update({
@@ -53,7 +53,7 @@ auto_updater.run_auto_update({
 })
 ```
 
-#### Example multiple `require()` script files
+#### Example auto-updating and `require()` of single file
 
 The helper function `require_with_auto_update` is used to both auto-update a file and require it for use in your script at the same time.
 
@@ -63,6 +63,97 @@ local inspect = auto_updater.require_with_auto_update({
     script_relpath="lib/inspect.lua",
     verify_file_begins_with="local",
 })
+```
+
+#### Example multiple dependencies
+
+If your script depends on multiple files, you can mark them all as dependencies on the main script, so that they will be checked for updates anytime the main script is updated. The loaded file can be accessed with the `loaded_lib` parameter on the dependency config item.
+
+This is an example of [Constructor's auto-update configuration](https://github.com/hexarobi/stand-lua-constructor/blob/main/Constructor.lua#L48),
+which loads many files through the dependencies list, and then loops through the loaded dependenices to create them as locally accessible variables.
+
+```lua
+local auto_update_config = {
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
+    script_relpath=SCRIPT_RELPATH,
+    switch_to_branch=selected_branch,
+    verify_file_begins_with="--",
+    dependencies={
+        {
+            name="inspect",
+            source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
+            script_relpath="lib/inspect.lua",
+            verify_file_begins_with="local",
+        },
+        {
+            name="xml2lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
+            script_relpath="lib/constructor/xml2lua.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="constants",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
+            script_relpath="lib/constructor/constants.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="constructor_lib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
+            script_relpath="lib/constructor/constructor_lib.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="iniparser",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/iniparser.lua",
+            script_relpath="lib/constructor/iniparser.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="convertors",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
+            script_relpath="lib/constructor/convertors.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="curated_attachments",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
+            script_relpath="lib/constructor/curated_attachments.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
+        },
+        {
+            name="constructor_logo",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
+            script_relpath="lib/constructor/constructor_logo.png",
+        },
+        {
+            name="translations",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
+            script_relpath="lib/constructor/translations.lua",
+            verify_file_begins_with="--",
+        },
+    }
+}
+auto_updater.run_auto_update(auto_update_config)
+local libs = {}
+for _, dependency in pairs(auto_update_config.dependencies) do
+    libs[dependency.name] = dependency.loaded_lib
+end
+local inspect = libs.inspect
+local constructor_lib = libs.constructor_lib
+local convertors = libs.convertors
+local constants = libs.constants
+local curated_attachments = libs.curated_attachments
+local translations = libs.translations
 ```
 
 #### Example dev branch picker
