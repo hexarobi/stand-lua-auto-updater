@@ -1,4 +1,4 @@
--- Auto-Updater v1.6
+-- Auto-Updater v1.6.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -193,7 +193,9 @@ local function process_auto_update(auto_update_config)
             end
         end
         is_download_complete = true
-        util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
+        if not auto_update_config.silent_updates then
+            util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
+        end
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
     end)
@@ -266,6 +268,7 @@ function run_auto_update(auto_update_config)
     if auto_update_config.dependencies ~= nil then
         for _, dependency in pairs(auto_update_config.dependencies) do
             dependency.is_dependency = true
+            if dependency.silent_updates == nil then dependency.silent_updates = auto_update_config.silent_updates end
             if (is_due_for_update_check(auto_update_config) or auto_update_config.script_updated or auto_update_config.version_data.fresh_update) then dependency.check_interval = 0 end
             if dependency.is_required and dependency.script_relpath:match("(.*)[.]lua$") then
                 require_with_auto_update(dependency)
