@@ -233,6 +233,11 @@ The HTTP timeout for loading the script, in miliseconds. Defaults to 10 seconds.
 
 This verfies the updated data was returned with a 200 (Successful) status code
 
+#### `silent_updates` (Optional, default=false)
+
+If set to `true` then successful update messages wont be shown to the user. 
+Any errors will still be shown. If set at the root config, this will also apply to all dependencies.
+
 #### `auto_restart` (Optional, default=true)
 
 Should the script auto restart after applying an update. 
