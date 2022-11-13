@@ -4,13 +4,9 @@ A lib file to make auto-updating script files easy. Relies on [ETags](https://de
 
 ## Quick Start
 
-Add this snippet near the top of your Lua Script, edit the `auto_update_source_url` field with the URL of the raw version of your main script file.
-Make sure your script file begins with a comment (Ex: `-- MyScript`) or modify the `verify_file_begins_with="--"` parameter.
-Thats it! On every run, your script will make a quick version check to GitHub, and if found replace the current script and restart.
+1. First, add this snippet near the top of your Lua Script to auto-install the auto-updater script itself.
 
 ```lua
-local auto_update_source_url = "https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua"
-
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 local status, auto_updater = pcall(require, "auto-updater")
 if not status then
@@ -33,15 +29,31 @@ if not status then
     auto_updater = require("auto-updater")
 end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
-auto_updater.run_auto_update({source_url=auto_update_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
+```
+For a more detailed explaination of what this snippet does, see [Quick Start Snippet Explained](#quick-start-snippet-explained)
+
+2. Then add a call to `auto_updater.run_auto_update()`, passing a table of configuration options for your main script file.
+
+```lua
+auto_updater.run_auto_update({
+    source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
+    script_relpath=SCRIPT_RELPATH,
+    verify_file_begins_with="--"
+})
 ```
 
-For a more detailed explaination of what this snippet does, see [Quick Start Snippet Explained](#quick-start-snippet-explained)
+The only required configuration is `source_url`, the URL for the raw version of your main script file.
+The `script_relpath` must be set, but for the main script file this can be left as `SCRIPT_RELPATH` and will be set by Stand.
+Use the optional `verify_file_begins_with` parameter to specify how the file is expected to begin, regardless of version changes.
+If you keep the example verification, make sure your file begins with a comment (Ex: `-- MyScript`).
+
+3. That's it! Each day your script is run, it will make a quick check for an update, and if found replace the current script and restart.
 
 ### Additional files
 
 If your project depends on additional files, you can setup auto_update calls for each file so that they 
 will auto-install and auto-update as needed. The auto-updater even uses this internally on itself to apply updates.
+However this method can be slow, so for lots of files using a list of `dependencies` is suggested.
 
 #### Example auto-updating of single file
 
@@ -73,29 +85,39 @@ This is an example of [Constructor's auto-update configuration](https://github.c
 which loads many files through the dependencies list, and then loops through the loaded dependenices to create them as locally accessible variables.
 
 ```lua
+
+local default_check_interval = 604800
 local auto_update_config = {
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
     script_relpath=SCRIPT_RELPATH,
     switch_to_branch=selected_branch,
     verify_file_begins_with="--",
+    check_interval=86400,
+    silent_updates=true,
     dependencies={
         {
             name="inspect",
             source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
             script_relpath="lib/inspect.lua",
             verify_file_begins_with="local",
+            check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="xml2lua",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
             script_relpath="lib/constructor/xml2lua.lua",
             verify_file_begins_with="--",
+            check_interval=default_check_interval,
         },
         {
             name="constants",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
             script_relpath="lib/constructor/constants.lua",
+            switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="constructor_lib",
@@ -103,6 +125,8 @@ local auto_update_config = {
             script_relpath="lib/constructor/constructor_lib.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="iniparser",
@@ -110,6 +134,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/iniparser.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=default_check_interval,
         },
         {
             name="convertors",
@@ -117,43 +142,56 @@ local auto_update_config = {
             script_relpath="lib/constructor/convertors.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="curated_attachments",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
             script_relpath="lib/constructor/curated_attachments.lua",
             verify_file_begins_with="--",
-        },
-        {
-            name="objects_complete",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
-            script_relpath="lib/constructor/objects_complete.txt",
-            verify_file_begins_with="ba_prop_glass_garage_opaque",
-        },
-        {
-            name="constructor_logo",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
-            script_relpath="lib/constructor/constructor_logo.png",
+            check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="translations",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
             script_relpath="lib/constructor/translations.lua",
             verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="constructor_logo",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
+            script_relpath="lib/constructor/constructor_logo.png",
+            check_interval=default_check_interval,
+        },
+        {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
+            check_interval=default_check_interval,
         },
     }
 }
 auto_updater.run_auto_update(auto_update_config)
-local libs = {}
+
+-- Load required dependencies into global namespace
 for _, dependency in pairs(auto_update_config.dependencies) do
-    libs[dependency.name] = dependency.loaded_lib
+    if dependency.is_required then
+        if dependency.loaded_lib == nil then
+            util.toast("Error loading lib "..dependency.name, TOAST_ALL)
+        else
+            local var_name = dependency.name
+            _G[var_name] = dependency.loaded_lib
+        end
+    end
 end
-local inspect = libs.inspect
-local constructor_lib = libs.constructor_lib
-local convertors = libs.convertors
-local constants = libs.constants
-local curated_attachments = libs.curated_attachments
-local translations = libs.translations
+
+-- Dependencies can now be used by name
+util.toast("Tire position name "..inspect(constants.tire_position_names))
 ```
 
 #### Example dev branch picker
@@ -244,7 +282,7 @@ Should the script auto restart after applying an update.
 This is true by default, but can be disabled as needed, usually when loading many files,
 tho you should finish up with one final update with restart to make sure all updates are applied.
 
-#### `restart_delay` (Optional, default=2900)
+#### `restart_delay` (Optional, default=nil)
 
 The number of miliseconds to wait after an update has been applied before restarting the script.
 If multiple files are being updated, this is needed to prevent restarting for each file.
