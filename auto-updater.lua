@@ -1,4 +1,4 @@
--- Auto-Updater v1.6.4
+-- Auto-Updater v2.0
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -9,7 +9,11 @@
 --        script_relpath=SCRIPT_RELPATH,  -- Set by Stand automatically for root script file, or can be used for lib files
 --    })
 
-local debug_mode = false
+local debug_mode = true
+
+local config = {
+    http_check_delay = 250,
+}
 
 ---
 --- Dependencies
@@ -18,6 +22,9 @@ local debug_mode = false
 --util.ensure_package_is_installed('lua/json')
 --local status_json, json = pcall(require, "json")
 --if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+
+local status_crypto, crypto = pcall(require, "crypto")
+if not status_crypto then util.log("Could not load crypto lib") end
 
 ---
 --- Utilities
@@ -80,28 +87,52 @@ local function update_version_last_checked_time(auto_update_config)
     save_version_data(auto_update_config)
 end
 
-local function update_version_id(auto_update_config, version_id)
+local function update_version_id(auto_update_config, version_id, file_hash)
     local script_version = auto_update_config.version_data.script_version
     load_version_data(auto_update_config)
     auto_update_config.version_data.version_id = version_id
+    auto_update_config.version_data.file_hash = file_hash
     auto_update_config.version_data.fresh_update = true
     auto_update_config.version_data.last_checked = util.current_unix_time_seconds()
     auto_update_config.version_data.script_version = script_version
     save_version_data(auto_update_config)
 end
 
+local function process_version(auto_update_config, result, headers)
+    local file_hash
+    if crypto then
+        file_hash = crypto.md5(result)
+    end
+    if headers then
+        for header_key, header_value in pairs(headers) do
+            if header_key:lower() == "etag" then
+                update_version_id(auto_update_config, header_value, file_hash)
+            end
+        end
+    end
+end
+
 ---
 --- Replacer
 ---
 
-local function replace_current_script(auto_update_config, new_script)
-    local file = io.open(auto_update_config.script_path, "wb")
+local function update_file(path, content)
+    local dirpath = path:match("(.-)([^\\/]-%.?)$")
+    filesystem.mkdirs(dirpath)
+    local file = io.open(path, "wb")
     if file == nil then
-        util.toast("Error updating "..auto_update_config.script_path..". Could not open file for writing.")
+        util.toast("Error updating "..path..". Could not open file for writing.")
+        return false
     end
-    file:write(new_script.."\n")
+    file:write(content)
     file:close()
-    auto_update_config.script_updated = true
+    return true
+end
+
+local function replace_current_script(auto_update_config, content)
+    if update_file(auto_update_config.script_path, content) then
+        auto_update_config.script_updated = true
+    end
 end
 
 local function parse_script_version(auto_update_config, script)
@@ -109,17 +140,116 @@ local function parse_script_version(auto_update_config, script)
 end
 
 ---
+--- Zip Extractor
+---
+
+local function escape_pattern(text)
+    return text:gsub("([^%w])", "%%%1")
+end
+
+local function extract_zip(auto_update_config)
+    debug_log("Extracting zip file "..auto_update_config.script_path)
+    if auto_update_config.extracted_files == nil then
+        auto_update_config.extracted_files = {}
+    end
+    local fr = soup.FileReader(auto_update_config.script_path)
+    local zr = soup.ZipReader(fr)
+    for _, f in zr:getFileList() do
+        for _, extraction in pairs(auto_update_config.extract) do
+            local pattern = "^"..escape_pattern(extraction.from)
+            if f.name:find(pattern) then
+                local output_filepath = filesystem.stand_dir() .. extraction.to .. f.name:gsub(pattern, "")
+                debug_log("Extracting to "..output_filepath)
+                local expand_status, content = pcall(zr.getFileContents, zr, f)
+                if not expand_status then
+                    debug_log("Failed to extract "..f.name..": "..content)
+                else
+                    update_file(output_filepath, content)
+                    table.insert(auto_update_config.extracted_files, output_filepath)
+                end
+            end
+        end
+    end
+end
+
+---
+--- Uninstaller
+---
+
+local function delete_file(filepath)
+    if filepath == nil or not filesystem.exists(filepath) then return end
+    debug_log("Deleteing file "..filepath)
+    os.remove(filepath)
+end
+
+local function uninstall(auto_update_config)
+    delete_file(auto_update_config.script_filepath)
+    if auto_update_config.extracted_files ~= nil then
+        for _, extracted_file in pairs(auto_update_config.extracted_files) do
+            delete_file(extracted_file)
+        end
+    end
+end
+
+---
 --- Config Defaults
 ---
 
+local function expand_project_config(auto_update_config)
+    if auto_update_config.project_url ~= nil then
+        if auto_update_config.branch == nil then
+            auto_update_config.branch = "main"
+        end
+        local _, _, user, project = auto_update_config.project_url:find("^https://github%.com/([^/]+)/([^/]+)/?$")
+        if not user or not project then
+            error("Invalid project url: "..auto_update_config.project_url)
+        end
+        if auto_update_config.author == nil then
+            auto_update_config.author = user
+        end
+        if auto_update_config.name == nil then
+            auto_update_config.name = project
+        end
+        if auto_update_config.script_run_name == nil then
+            auto_update_config.script_run_name = project
+        end
+        if auto_update_config.source_url == nil then
+            auto_update_config.source_url = "https://codeload.github.com/"..user.."/"..project.."/zip/refs/heads/" .. auto_update_config.branch
+        end
+        local filename = user .. "-" .. project .. "-" .. auto_update_config.branch .. ".zip"
+        if auto_update_config.script_relpath == nil then
+            auto_update_config.script_relpath = filename
+        end
+        if auto_update_config.script_path == nil then
+            auto_update_config.script_path = filesystem.store_dir() .. "auto-updater/compressed/" ..  filename
+        end
+        if auto_update_config.extract == nil then
+            auto_update_config.extract = {
+                {
+                    from=filename,
+                    to="Lua Scripts",
+                }
+            }
+        end
+    end
+end
+
 local function expand_auto_update_config(auto_update_config)
+    expand_project_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
-    auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
-    auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
+    if auto_update_config.script_path == nil then
+        auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
+    end
+    if auto_update_config.script_filename == nil then
+        auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
+    end
+    if auto_update_config.name == nil then
+        auto_update_config.name = auto_update_config.script_filename
+    end
     auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
     filesystem.mkdirs(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
     if auto_update_config.version_file == nil then
-        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater" .. auto_update_config.script_reldirpath
+        auto_update_config.version_store_dir = filesystem.store_dir() .. "auto-updater/versions" .. auto_update_config.script_reldirpath
         filesystem.mkdirs(auto_update_config.version_store_dir)
         auto_update_config.version_file = auto_update_config.version_store_dir .. "/" .. auto_update_config.script_filename .. ".version"
     end
@@ -133,7 +263,11 @@ local function expand_auto_update_config(auto_update_config)
     --    auto_update_config.restart_delay = 100
     --end
     if auto_update_config.http_timeout == nil then
-        auto_update_config.http_timeout = 30000
+        if auto_update_config.extract == nil then
+            auto_update_config.http_timeout = 30000
+        else
+            auto_update_config.http_timeout = 60000
+        end
     end
     if auto_update_config.expected_status_code == nil then
         auto_update_config.expected_status_code = 200
@@ -150,54 +284,64 @@ end
 
 local is_download_complete
 
+local function is_result_valid(auto_update_config, result, headers, status_code)
+    if status_code == 304 then
+        -- No update found
+        update_version_last_checked_time(auto_update_config)
+        is_download_complete = true
+        return false
+    end
+    if status_code == 302 then
+        util.toast("Error updating "..auto_update_config.name..": Unexpected redirection from "..auto_update_config.source_url.." to "..headers["Location"], TOAST_ALL)
+        is_download_complete = false
+        return false
+    end
+    if status_code ~= auto_update_config.expected_status_code then
+        util.toast("Error updating "..auto_update_config.name..": Unexpected status code: "..status_code .. " for URL "..auto_update_config.source_url, TOAST_ALL)
+        is_download_complete = false
+        return false
+    end
+    if not result or result == "" then
+        util.toast("Error updating "..auto_update_config.name..": Empty content", TOAST_ALL)
+        is_download_complete = false
+        return false
+    end
+    if auto_update_config.verify_file_begins_with ~= nil then
+        if not string.startswith(result, auto_update_config.verify_file_begins_with) then
+            util.toast("Error updating "..auto_update_config.name..": Found invalid content", TOAST_ALL)
+            is_download_complete = false
+            return false
+        end
+    end
+    if auto_update_config.verify_file_begins_with == nil and auto_update_config.verify_file_does_not_begin_with == nil then
+        auto_update_config.verify_file_does_not_begin_with = "<"
+    end
+    if auto_update_config.verify_file_does_not_begin_with ~= nil
+            and string.startswith(result, auto_update_config.verify_file_does_not_begin_with) then
+        util.toast("Error updating "..auto_update_config.name..": Found invalid content", TOAST_ALL)
+        is_download_complete = false
+        return false
+    end
+    return true
+end
+
 local function process_auto_update(auto_update_config)
     async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
-        if status_code == 304 then
-            -- No update found
-            update_version_last_checked_time(auto_update_config)
-            is_download_complete = true
-            return
-        end
-        if status_code ~= auto_update_config.expected_status_code then
-            util.toast("Error updating "..auto_update_config.script_filename..": Unexpected status code: "..status_code, TOAST_ALL)
-            is_download_complete = false
-            return
-        end
-        if not result or result == "" then
-            util.toast("Error updating "..auto_update_config.script_filename..": Empty content", TOAST_ALL)
-            is_download_complete = false
-            return
-        end
-        if auto_update_config.verify_file_begins_with ~= nil then
-            if not string_starts(result, auto_update_config.verify_file_begins_with) then
-                util.toast("Error updating "..auto_update_config.script_filename..": Found invalid content", TOAST_ALL)
-                is_download_complete = false
-                return
-            end
-        end
-        if auto_update_config.verify_file_does_not_begin_with == nil then
-            auto_update_config.verify_file_does_not_begin_with = "<"
-        end
-        if string_starts(result, auto_update_config.verify_file_does_not_begin_with) then
-            util.toast("Error updating "..auto_update_config.script_filename..": Found invalid content", TOAST_ALL)
-            is_download_complete = false
+        if not is_result_valid(auto_update_config, result, headers, status_code) then
             return
         end
         replace_current_script(auto_update_config, result)
         parse_script_version(auto_update_config, result)
-        if headers then
-            for header_key, header_value in pairs(headers) do
-                if header_key:lower() == "etag" then
-                    update_version_id(auto_update_config, header_value)
-                end
-            end
+        process_version(auto_update_config, result, headers)
+        if auto_update_config.extract ~= nil then
+            extract_zip(auto_update_config)
         end
         is_download_complete = true
         if not auto_update_config.silent_updates then
-            util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
+            util.toast("Updated "..auto_update_config.name, TOAST_ALL)
         end
     end, function()
-        util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
+        util.toast("Error updating "..auto_update_config.name..": Update failed to download.", TOAST_ALL)
     end)
     -- Only use cached version if this is not a clean reinstall, and if the file still exists on disk
     if auto_update_config.clean_reinstall ~= true and filesystem.exists(auto_update_config.script_path) then
@@ -218,6 +362,12 @@ local function is_due_for_update_check(auto_update_config)
         or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
         or (not filesystem.exists(auto_update_config.script_path))
     )
+end
+
+local function is_update_disabled()
+    local disable_internet_access_menu = menu.ref_by_path("Stand>Lua Scripts>Settings>Disable Internet Access")
+    if not disable_internet_access_menu then util.toast("Could not find disable_internet_access_menu") end
+    return disable_internet_access_menu.value
 end
 
 ---
@@ -244,6 +394,10 @@ end
 function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
     debug_log("Running auto-update on "..auto_update_config.script_filename.."...", TOAST_ALL)
+    if is_update_disabled() then
+        util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Stand > Lua Scripts > Settings > Disable Internet Access", TOAST_ALL)
+        return false
+    end
     if not auto_update_config.is_dependency then util.set_busy(true) end
     if is_due_for_update_check(auto_update_config) then
         is_download_complete = nil
@@ -251,8 +405,8 @@ function run_auto_update(auto_update_config)
             process_auto_update(auto_update_config)
         end)
         local i = 1
-        while (is_download_complete == nil and i < (auto_update_config.http_timeout / 500)) do
-            util.yield(250)
+        while (is_download_complete == nil and i < (auto_update_config.http_timeout / config.http_check_delay)) do
+            util.yield(config.http_check_delay)
             i = i + 1
         end
         if is_download_complete == nil then
@@ -329,4 +483,7 @@ end)
 return {
     run_auto_update = run_auto_update,
     require_with_auto_update = require_with_auto_update,
+    expand_auto_update_config = expand_auto_update_config,
+    uninstall = uninstall,
 }
+
