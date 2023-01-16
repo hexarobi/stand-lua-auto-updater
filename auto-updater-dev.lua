@@ -1,4 +1,4 @@
--- Auto-Updater v2.1
+-- Auto-Updater v2.2
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -203,34 +203,71 @@ local function uninstall(auto_update_config)
 end
 
 ---
+--- GitHub API
+---
+
+local function parse_github_user_and_project(url)
+    local _, _, user, project = url:find("^https://github%.com/([^/]+)/([^/]+)/?$")
+    if not user or not project then
+        error("Invalid project url (must be a GitHub.com project): "..url)
+    end
+    return user, project
+end
+
+local function fetch_json(url)
+    local fetch_complete = false
+    local response
+    async_http.init(parse_url_host(url), parse_url_path(url), function(result, headers, status_code)
+        response = soup.json.decode(result)
+        fetch_complete = true
+    end, function()
+        util.toast("Error fetching "..url, TOAST_ALL)
+        fetch_complete = true
+    end)
+    async_http.dispatch()
+    while fetch_complete ~= true do util.yield() end
+    return response
+end
+
+local function get_default_branch(auto_update_config)
+    local user, project = parse_github_user_and_project(auto_update_config.project_url)
+    local response = fetch_json("https://api.github.com/repos/"..user.."/"..project.."/branches")
+    return response[1].name
+end
+
+
+---
 --- Config Defaults
 ---
 
-local function expand_project_config(auto_update_config)
+local function default_project_config(auto_update_config)
     if auto_update_config.project_url ~= nil then
-        if auto_update_config.branch == nil then
-            auto_update_config.branch = "main"
-        end
-        local _, _, user, project = auto_update_config.project_url:find("^https://github%.com/([^/]+)/([^/]+)/?$")
-        if not user or not project then
-            error("Invalid project url (must be a GitHub.com project): "..auto_update_config.project_url)
-        end
+        local user, project = parse_github_user_and_project(auto_update_config.project_url)
         if auto_update_config.author == nil then
             auto_update_config.author = user
         end
-        --if auto_update_config.name == nil then
-        --    auto_update_config.name = project
-        --end
         if auto_update_config.source_url == nil then
-            auto_update_config.source_url = "https://codeload.github.com/"..user.."/"..project.."/zip/refs/heads/" .. auto_update_config.branch
+            auto_update_config.source_url = auto_update_config.project_url
         end
-        local filename = user .. "-" .. project .. "-" .. auto_update_config.branch .. ".zip"
         if auto_update_config.script_relpath == nil then
-            auto_update_config.script_relpath = filename
+            auto_update_config.script_relpath = user .. "-" .. project .. "-main.zip"
         end
-        if auto_update_config.script_path == nil then
-            auto_update_config.script_path = filesystem.store_dir() .. "auto-updater/compressed/" ..  filename
+    end
+end
+
+local function true_project_config(auto_update_config)
+    -- Slower config makes API call to get proper branch name, only used at install time
+    if auto_update_config.project_url ~= nil then
+        if auto_update_config.branch == nil then
+            -- Get branch from API
+            auto_update_config.branch = get_default_branch(auto_update_config)
+            debug_log("Set branch "..auto_update_config.branch)
         end
+        local user, project = parse_github_user_and_project(auto_update_config.project_url)
+        auto_update_config.source_url = "https://codeload.github.com/"..user.."/"..project.."/zip/refs/heads/" .. auto_update_config.branch
+        local filename = user .. "-" .. project .. "-" .. auto_update_config.branch .. ".zip"
+        auto_update_config.script_relpath = filename
+        auto_update_config.script_path = filesystem.store_dir() .. "auto-updater/compressed/" ..  filename
         if auto_update_config.extract == nil then
             auto_update_config.extract = {
                 {
@@ -243,7 +280,7 @@ local function expand_project_config(auto_update_config)
 end
 
 local function expand_auto_update_config(auto_update_config)
-    expand_project_config(auto_update_config)
+    default_project_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
     if auto_update_config.script_path == nil then
         auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
@@ -334,6 +371,7 @@ local function is_result_valid(auto_update_config, result, headers, status_code)
 end
 
 local function process_auto_update(auto_update_config)
+    true_project_config(auto_update_config)
     async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
         if not is_result_valid(auto_update_config, result, headers, status_code) then
             return
