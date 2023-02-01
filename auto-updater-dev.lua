@@ -1,18 +1,23 @@
--- Auto-Updater v2.2
+-- Auto-Updater v2.3
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
--- Example Usage:
---    auto_updater = require("auto-updater")
---    auto_updater.run_auto_update({
---        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-hornsongs/main/HornSongs.lua",
---        script_relpath=SCRIPT_RELPATH,  -- Set by Stand automatically for root script file, or can be used for lib files
---    })
 
 local debug_mode = true
 
 local config = {
     http_check_delay = 250,
+    extraction_ignored_filenames = {
+        "readme",
+        "readme.txt",
+        "readme.md",
+        "license",
+        "license.txt",
+        "license.md",
+        "version",
+        "version.txt",
+        "version.lua",
+    }
 }
 
 ---
@@ -140,11 +145,35 @@ local function parse_script_version(auto_update_config, script)
 end
 
 ---
+--- Full Restarter
+---
+
+local function force_full_restart(auto_update_config)
+    local script_body = "util.yield(50) menu.trigger_commands(\"lua"..auto_update_config.script_run_name.."\")\
+                        io.remove(filesystem.scripts_dir()..SCRIPT_RELPATH) util.stop_script()"
+    update_file(filesystem.scripts_dir().."\\restartscript.lua", script_body)
+    menu.trigger_command(menu.ref_by_path("Stand>Lua Scripts"))
+    util.yield(50)
+    menu.trigger_commands("luarestartscript")
+    util.stop_script()
+end
+
+---
 --- Zip Extractor
 ---
 
 local function escape_pattern(text)
     return text:gsub("([^%w])", "%%%1")
+end
+
+local function is_ignored_filename(filename)
+    local filename_lower = filename:lower()
+    for _, ignored_filename in pairs(config.extraction_ignored_filenames) do
+        if ignored_filename == filename_lower then
+            return true
+        end
+    end
+    return false
 end
 
 local function extract_zip(auto_update_config)
@@ -154,11 +183,11 @@ local function extract_zip(auto_update_config)
     local fr = soup.FileReader(auto_update_config.script_path)
     local zr = soup.ZipReader(fr)
     for _, f in zr:getFileList() do
-        for _, extraction in pairs(auto_update_config.extract) do
+        for _, extraction in pairs(auto_update_config.extractions) do
             local pattern = "^"..escape_pattern(extraction.from).."/(.*[^/])$"
             local _, _, relative_path = f.name:find(pattern)
             --local relative_path = f.name:gsub(pattern, "")
-            if relative_path and relative_path ~= "README.md" then
+            if relative_path and not is_ignored_filename(relative_path) then
                 local output_filepath = filesystem.stand_dir() .. extraction.to .. relative_path
                 debug_log("Extracting file "..output_filepath)
                 local expand_status, content = pcall(zr.getFileContents, zr, f)
@@ -169,8 +198,12 @@ local function extract_zip(auto_update_config)
                     if first_lua_file == nil and lua_filename then
                         debug_log("Found first lua filename "..lua_filename)
                         first_lua_file = lua_filename
-                        auto_update_config.script_run_name = lua_filename
-                        auto_update_config.script_filepath = output_filepath
+                        if auto_update_config.script_run_name == nil then
+                            auto_update_config.script_run_name = lua_filename
+                        end
+                        if auto_update_config.script_filepath == nil then
+                            auto_update_config.script_filepath = output_filepath
+                        end
                     end
                     update_file(output_filepath, content)
                     debug_log("Extracted file "..output_filepath)
@@ -189,8 +222,8 @@ end
 
 local function delete_file(filepath)
     if filepath == nil or not filesystem.exists(filepath) then return end
-    debug_log("Deleteing file "..filepath)
-    os.remove(filepath)
+    debug_log("Deleting file "..filepath)
+    io.remove(filepath)
 end
 
 local function uninstall(auto_update_config)
@@ -240,7 +273,8 @@ end
 --- Config Defaults
 ---
 
-local function default_project_config(auto_update_config)
+local function initial_project_config(auto_update_config)
+    -- Faster config assumes main branch for now, will use final_project_config to detect actual branch name
     if auto_update_config.project_url ~= nil then
         local user, project = parse_github_user_and_project(auto_update_config.project_url)
         if auto_update_config.author == nil then
@@ -248,16 +282,15 @@ local function default_project_config(auto_update_config)
         end
         if auto_update_config.source_url == nil then
             auto_update_config.source_url = auto_update_config.project_url
-        end
-        if auto_update_config.script_relpath == nil then
+            auto_update_config.is_project_archive = true
             auto_update_config.script_relpath = user .. "-" .. project .. "-main.zip"
         end
     end
 end
 
-local function true_project_config(auto_update_config)
+local function final_project_config(auto_update_config)
     -- Slower config makes API call to get proper branch name, only used at install time
-    if auto_update_config.project_url ~= nil then
+    if auto_update_config.project_url ~= nil and auto_update_config.is_project_archive then
         if auto_update_config.branch == nil then
             -- Get branch from API
             auto_update_config.branch = get_default_branch(auto_update_config)
@@ -268,8 +301,8 @@ local function true_project_config(auto_update_config)
         local filename = user .. "-" .. project .. "-" .. auto_update_config.branch .. ".zip"
         auto_update_config.script_relpath = filename
         auto_update_config.script_path = filesystem.store_dir() .. "auto-updater/compressed/" ..  filename
-        if auto_update_config.extract == nil then
-            auto_update_config.extract = {
+        if auto_update_config.extractions == nil then
+            auto_update_config.extractions = {
                 {
                     from=project .. "-" .. auto_update_config.branch,
                     to="Lua Scripts\\",
@@ -280,7 +313,7 @@ local function true_project_config(auto_update_config)
 end
 
 local function expand_auto_update_config(auto_update_config)
-    default_project_config(auto_update_config)
+    initial_project_config(auto_update_config)
     auto_update_config.script_relpath = auto_update_config.script_relpath:gsub("\\", "/")
     if auto_update_config.script_path == nil then
         auto_update_config.script_path = filesystem.scripts_dir() .. auto_update_config.script_relpath
@@ -290,6 +323,9 @@ local function expand_auto_update_config(auto_update_config)
     end
     if auto_update_config.name == nil then
         auto_update_config.name = auto_update_config.script_filename
+    end
+    if auto_update_config.script_run_name == nil and auto_update_config.script_filename then
+        auto_update_config.script_run_name = auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]lua$")
     end
     auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
     filesystem.mkdirs(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
@@ -308,11 +344,7 @@ local function expand_auto_update_config(auto_update_config)
     --    auto_update_config.restart_delay = 100
     --end
     if auto_update_config.http_timeout == nil then
-        if auto_update_config.extract == nil then
-            auto_update_config.http_timeout = 30000
-        else
-            auto_update_config.http_timeout = 60000
-        end
+        auto_update_config.http_timeout = 45000
     end
     if auto_update_config.expected_status_code == nil then
         auto_update_config.expected_status_code = 200
@@ -371,7 +403,7 @@ local function is_result_valid(auto_update_config, result, headers, status_code)
 end
 
 local function process_auto_update(auto_update_config)
-    true_project_config(auto_update_config)
+    final_project_config(auto_update_config)
     async_http.init(parse_url_host(auto_update_config.source_url), parse_url_path(auto_update_config.source_url), function(result, headers, status_code)
         if not is_result_valid(auto_update_config, result, headers, status_code) then
             return
@@ -379,7 +411,7 @@ local function process_auto_update(auto_update_config)
         replace_current_script(auto_update_config, result)
         parse_script_version(auto_update_config, result)
         process_version(auto_update_config, result, headers)
-        if auto_update_config.extract ~= nil then
+        if auto_update_config.extractions ~= nil then
             extract_zip(auto_update_config)
         end
         is_download_complete = true
@@ -462,7 +494,7 @@ function run_auto_update(auto_update_config)
         if (auto_update_config.script_updated and not auto_update_config.is_dependency) and auto_update_config.auto_restart ~= false then
             debug_log("Restarting...", TOAST_ALL)
             if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
-            util.restart_script()
+            force_full_restart(auto_update_config)
             return
         end
     end
@@ -480,20 +512,20 @@ function run_auto_update(auto_update_config)
             if dependency.script_updated then dependency_updated = true end
         end
     end
+    if auto_update_config.version_data.fresh_update and not auto_update_config.is_dependency then
+        -- TODO: Show changelog
+        if auto_update_config.version_data.script_version then
+            util.toast("Updated "..auto_update_config.script_filename.." to "..tostring(auto_update_config.version_data.script_version), TOAST_ALL)
+        end
+        auto_update_config.version_data.fresh_update = false
+        save_version_data(auto_update_config)
+    end
     if (dependency_updated) and auto_update_config.auto_restart ~= false then
         debug_log("Dependency updated. Restarting...", TOAST_ALL)
         if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
-        util.restart_script()
+        force_full_restart(auto_update_config)
         return
     else
-        if auto_update_config.version_data.fresh_update and not auto_update_config.is_dependency then
-            -- TODO: Show changelog
-            if auto_update_config.version_data.script_version then
-                util.toast("Updated "..auto_update_config.script_filename.." to "..tostring(auto_update_config.version_data.script_version), TOAST_ALL)
-            end
-            auto_update_config.version_data.fresh_update = false
-            save_version_data(auto_update_config)
-        end
     end
     if not auto_update_config.is_dependency then util.set_busy(false) end
     return true
