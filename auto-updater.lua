@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.1
+-- Auto-Updater v2.5.2
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -171,6 +171,12 @@ local function is_ignored_filename(filename)
     return false
 end
 
+local function build_script_run_name(script_name)
+    if script_name ~= nil then
+        return script_name:gsub("_", "")
+    end
+end
+
 local function extract_zip(auto_update_config)
     debug_log("Extracting zip file "..auto_update_config.script_path)
     if auto_update_config.extracted_files == nil then auto_update_config.extracted_files = {} end
@@ -194,7 +200,7 @@ local function extract_zip(auto_update_config)
                         debug_log("Found first lua filename "..lua_filename)
                         first_lua_file = lua_filename
                         if auto_update_config.script_run_name == nil then
-                            auto_update_config.script_run_name = lua_filename
+                            auto_update_config.script_run_name = build_script_run_name(lua_filename)
                         end
                         if auto_update_config.script_filepath == nil then
                             auto_update_config.script_filepath = output_filepath
@@ -320,7 +326,7 @@ local function expand_auto_update_config(auto_update_config)
         auto_update_config.name = auto_update_config.script_filename
     end
     if auto_update_config.script_run_name == nil and auto_update_config.script_filename then
-        auto_update_config.script_run_name = auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]lua$")
+        auto_update_config.script_run_name = build_script_run_name(auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]lua$"))
     end
     auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
     filesystem.mkdirs(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
