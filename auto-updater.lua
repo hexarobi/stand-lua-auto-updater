@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.4
+-- Auto-Updater v2.5.5
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -173,7 +173,7 @@ end
 
 local function build_script_run_name(script_name)
     if script_name ~= nil then
-        return script_name:gsub("_", "")
+        return script_name:gsub("_", ""):gsub(" ", "")
     end
 end
 
