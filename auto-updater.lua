@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.5
+-- Auto-Updater v2.5.6
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -328,6 +328,9 @@ local function expand_auto_update_config(auto_update_config)
     end
     if auto_update_config.script_run_name == nil and auto_update_config.script_filename then
         auto_update_config.script_run_name = build_script_run_name(auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]lua$"))
+        if auto_update_config.script_run_name == nil then
+            auto_update_config.script_run_name = build_script_run_name(auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]pluto"))
+        end
     end
     auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
     filesystem.mkdirs(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
