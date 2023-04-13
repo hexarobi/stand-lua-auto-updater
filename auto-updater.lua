@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.6
+-- Auto-Updater v2.5.7
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -117,15 +117,17 @@ end
 ---
 
 local function update_file(path, content)
+    debug_log("Updating file "..path)
     local dirpath = path:match("(.-)([^\\/]-%.?)$")
     filesystem.mkdirs(dirpath)
     local file = io.open(path, "wb")
     if file == nil then
-        util.toast("Error updating "..path..". Could not open file for writing.")
+        util.toast("Error updating "..path..". Could not open file for writing.", TOAST_ALL)
         return false
     end
     file:write(content)
     file:close()
+    debug_log("Updated file "..path)
     return true
 end
 
@@ -458,7 +460,7 @@ end
 ---
 
 local function require_with_auto_update(auto_update_config)
-    auto_update_config.lib_require_path = auto_update_config.script_relpath:gsub("[.]lua$", "")
+    auto_update_config.lib_require_path = auto_update_config.script_relpath:gsub("[.]lua$", ""):gsub("[.]pluto$", "")
     --if auto_update_config.auto_restart == nil then auto_update_config.auto_restart = false end
     run_auto_update(auto_update_config)
     local auto_loaded_lib_status, loaded_lib = pcall(require, auto_update_config.lib_require_path)
@@ -512,7 +514,7 @@ function run_auto_update(auto_update_config)
             dependency.is_dependency = true
             if dependency.silent_updates == nil then dependency.silent_updates = auto_update_config.silent_updates end
             if (is_due_for_update_check(auto_update_config) or auto_update_config.script_updated or auto_update_config.version_data.fresh_update) then dependency.check_interval = 0 end
-            if dependency.is_required and dependency.script_relpath:match("(.*)[.]lua$") then
+            if dependency.is_required and (dependency.script_relpath:match("(.*)[.]lua$") or dependency.script_relpath:match("(.*)[.]pluto$")) then
                 require_with_auto_update(dependency)
             else
                 run_auto_update(dependency)
