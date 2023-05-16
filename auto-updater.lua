@@ -481,7 +481,7 @@ function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
     debug_log("Running auto-update on "..auto_update_config.script_filename.."...", TOAST_ALL)
     if is_update_disabled() then
-        util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Stand > Lua Scripts > Settings > Disable Internet Access", TOAST_ALL)
+        util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Disable Internet Access for this script.", TOAST_ALL)
         return false
     end
     if not auto_update_config.is_dependency then util.set_busy(true) end
