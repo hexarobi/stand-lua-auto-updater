@@ -8,33 +8,9 @@ A lib file to make auto-updating script files easy. Relies on [ETags](https://de
 
 ```lua
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
-local status, auto_updater = pcall(require, "auto-updater")
-if not status then
-    if not async_http.have_access() then
-        util.toast("Failed to install auto-updater. Internet access is disabled. To enable automatic updates, please stop the script then uncheck the `Disable Internet Access` option.")
-    else
-        local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
-        async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-                function(raw_result, raw_headers, raw_status_code)
-                    local function parse_auto_update_result(result, headers, status_code)
-                        local error_prefix = "Error downloading auto-updater: "
-                        if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
-                        if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
-                        filesystem.mkdir(filesystem.scripts_dir() .. "lib")
-                        local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
-                        if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
-                        file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
-                    end
-                    auto_update_complete = parse_auto_update_result(raw_result, raw_headers, raw_status_code)
-                end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
-        async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
-        if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
-        auto_updater = require("auto-updater")
-    end
-end
-if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
+util.ensure_package_is_installed("lua/auto-updater")
+local auto_updater = require("auto-updater")
 ```
-For a more detailed explaination of what this snippet does, see [Quick Start Snippet Explained](#quick-start-snippet-explained)
 
 2. Then add a call to `auto_updater.run_auto_update()`, passing a table of configuration options for your main script file.
 
@@ -310,79 +286,4 @@ menu.action(script_meta_menu, "Check for Update", {}, "The script will automatic
     util.toast("Checking for updates")
     auto_updater.run_auto_update(auto_update_config)
 end)
-```
-
-## Quick Start Snippet Explained
-
-Unpack the quick start snippet and explain the details of what is happening on each line.
-
-```lua
--- Attempt to require the auto-updater lib. If successful continue as normal, if not, download and install it.
-local status, auto_updater = pcall(require, "auto-updater")
-if not status then
-    -- Set a flag so we know when download and install has completed
-    local auto_update_complete = nil
-    -- Log a message that installation is beginning, both to the screen and to the log file
-    util.toast("Installing auto-updater...", TOAST_ALL)
-    -- Initialize an asynchronous HTTP GET request to the given host, and path.
-    -- When completed, execute either the given success or error function.
-    async_http.init(
-        "raw.githubusercontent.com",    -- GitHub raw content is served from a content delivery network (CDN)
-        "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",   -- Path to the auto-updater script hosted on github
-        function(result, headers, status_code)  -- On Success handler
-            -- Function to parse results and install lib and return success flag, or log a reason and return a failure flag
-            local function parse_auto_update_result(result, headers, status_code)
-                local error_prefix = "Error downloading auto-updater: " -- Many errors will need the same prefix to set it once
-                -- A successful HTTP response is 200, anything else should be treated as an error
-                if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
-                -- A successful file download should have at least SOME content, an empty file should be treated as an error
-                if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
-                -- Make sure the lib folder is created if it doesnt exist already
-                filesystem.mkdir(filesystem.scripts_dir() .. "lib")
-                -- Open the script file for writing binary data
-                local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
-                -- A successful update requires writing to the file, a failure to open the file for writing should be treated as an error
-                if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
-                -- Write the script contents to the file
-                file:write(result)
-                -- Close the file
-                file:close()
-                -- Log the successful update
-                util.toast("Successfully installed auto-updater lib", TOAST_ALL)
-                -- Return success flag
-                return true
-            end
-            -- Run parse function and set the update response flag to the return value
-            auto_update_complete = parse_auto_update_result(result, headers, status_code)
-        end,
-        function()  -- On Error Handler
-            util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL)
-        end
-    )
-    -- Begin the HTTP request defined above
-    async_http.dispatch()
-    -- Initialize a counter
-    local i = 1
-    -- Loop until the counter reaches 40, or until a update response flag is set
-    while (auto_update_complete == nil and i < 40) do
-        -- Pause for 250ms before checking again
-        util.yield(250)
-        -- Increment counter
-        i = i + 1
-    end
-    
-    -- If we have waited 40 loops of 250ms (10 secs) without a reply, then error with a timeout
-    if auto_update_complete == nil then 
-        error("Error downloading auto-updater lib. HTTP Request timeout") 
-    end
-    
-    -- The download and install has completed, so require the lib and continue with script execution
-    auto_updater = require("auto-updater")
-end
-
--- If the require loaded a boolean instead of a table, something with the auto-updater file is corrupted and needs to be re-downloaded
-if auto_updater == true then
-    error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again", TOAST_ALL)
-end
-
 ```
