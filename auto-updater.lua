@@ -148,12 +148,23 @@ end
 --- Full Restarter
 ---
 
-local function force_full_restart(auto_update_config)
-    -- Not using util.restart_script because updated libraries would not be re-required
-    local menu_script_path = "Stand>Lua Scripts>"..auto_update_config.script_name
-    if not menu.is_ref_valid(menu.ref_by_path(menu_script_path)) then
-        error("Failed to restart. Menu script path is invalid.")
+local function is_root(cmd)
+    return not cmd:getParent():isValid()
+end
+
+local function get_path_config(cmd)
+    local path = cmd.name_for_config
+    while true do
+        cmd = cmd:getParent()
+        if is_root(cmd) then break end
+        path = cmd.name_for_config..">"..path
     end
+    return path
+end
+
+local function force_full_restart()
+    -- Not using util.restart_script because updated libraries would not be re-required
+    local menu_script_path = get_path_config(menu.my_root())
     local script_body = "\
 util.yield(50)\
 local script_stop_command_ref = menu.ref_by_path(\""..menu_script_path..">Stop Script\")\
@@ -549,7 +560,7 @@ function run_auto_update(auto_update_config)
         if (auto_update_config.script_updated and not auto_update_config.is_dependency) and auto_update_config.auto_restart ~= false then
             debug_log("Restarting...")
             if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
-            force_full_restart(auto_update_config)
+            force_full_restart()
             return
         end
     end
@@ -578,7 +589,7 @@ function run_auto_update(auto_update_config)
     if (dependency_updated) and auto_update_config.auto_restart ~= false then
         debug_log("Dependency updated. Restarting...")
         if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
-        force_full_restart(auto_update_config)
+        force_full_restart()
         return
     end
     if not auto_update_config.is_dependency then
