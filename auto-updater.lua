@@ -149,6 +149,7 @@ end
 ---
 
 local function force_full_restart(auto_update_config)
+    -- Not using util.restart_script because updated libraries would not be re-required
     local menu_script_path = "Stand>Lua Scripts>"..auto_update_config.script_name
     if not menu.is_ref_valid(menu.ref_by_path(menu_script_path)) then
         error("Failed to restart. Menu script path is invalid.")
