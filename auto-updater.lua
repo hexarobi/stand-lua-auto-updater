@@ -525,10 +525,8 @@ function run_auto_update(auto_update_config)
         util.toast("Cannot auto-update due to disabled internet access. To enable updates, please stop the script then uncheck the `Disable Internet Access` option.", TOAST_ALL)
         return false
     end
-    local busy_menu
     if not auto_update_config.is_dependency then
         util.set_busy(true)
-        busy_menu = menu.divider(menu.my_root(), "Please wait...")
     end
     if is_due_for_update_check(auto_update_config) then
         is_download_complete = nil
@@ -582,9 +580,6 @@ function run_auto_update(auto_update_config)
     end
     if not auto_update_config.is_dependency then
         util.set_busy(false)
-        if menu.is_ref_valid(busy_menu) then
-            menu.delete(busy_menu)
-        end
     end
     return true
 end
