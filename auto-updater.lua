@@ -149,45 +149,7 @@ end
 ---
 
 local function force_full_restart(auto_update_config)
-    local menu_script_path = "Stand>Lua Scripts>"..auto_update_config.script_name
-    if not menu.is_ref_valid(menu.ref_by_path(menu_script_path)) then
-        error("Failed to restart. Menu script path is invalid.")
-    end
-    local script_body = "\
-util.yield(50)\
-local script_stop_command_ref = menu.ref_by_path(\""..menu_script_path..">Stop Script\")\
-if menu.is_ref_valid(script_stop_command_ref) then\
-    menu.focus(script_stop_command_ref)\
-    util.yield(50)\
-    menu.trigger_command(script_stop_command_ref)\
-end\
-util.yield(50)\
-local script_command_ref = menu.ref_by_path(\""..menu_script_path..">Start Script\")\
-if menu.is_ref_valid(script_command_ref) then\
-    menu.focus(script_command_ref)\
-    util.yield(50)\
-  menu.trigger_command(script_command_ref)\
-end\
-io.remove(filesystem.scripts_dir()..SCRIPT_RELPATH)\
-util.stop_script()\
-    "
-    update_file(filesystem.scripts_dir().."\\restartscript.lua", script_body)
-
-    local menu_item
-    menu_item = menu.ref_by_path("Stand>Lua Scripts")
-    if menu.is_ref_valid(menu_item) then
-        menu.focus(menu_item)
-        menu.trigger_command(menu_item)
-        util.yield(50)
-    end
-
-    local restart_script = menu.ref_by_path("Stand>Lua Scripts>restartscript>Start Script")
-    if menu.is_ref_valid(restart_script) then
-        menu.focus(restart_script)
-        util.yield(50)
-        menu.trigger_command(restart_script)
-    end
-    util.stop_script()
+    util.restart_script()
 end
 
 ---
