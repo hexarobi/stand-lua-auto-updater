@@ -17,7 +17,6 @@ local auto_updater = require("auto-updater")
 auto_updater.run_auto_update({
     source_url="https://raw.githubusercontent.com/MyUsername/MyProjectName/main/MyScriptName.lua",
     script_relpath=SCRIPT_RELPATH,
-    verify_file_begins_with="--"
 })
 ```
 
