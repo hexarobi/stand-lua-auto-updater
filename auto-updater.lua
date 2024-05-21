@@ -1,4 +1,4 @@
--- Auto-Updater v2.11r
+-- Auto-Updater v2.12r
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -43,6 +43,13 @@ end
 
 local function parse_url_path(url)
     return "/"..url:match("://.-/(.*)")
+end
+
+local function get_github_raw_url(github_project_url, branch, script_relpath)
+    local project_path = github_project_url:match("^https://github.com/([^/]+/[^/]+)$")
+    if project_path then
+        return "https://raw.githubusercontent.com/"..project_path.."/"..branch.."/"..script_relpath
+    end
 end
 
 local function modify_github_url_branch(url, switch_to_branch)
@@ -526,6 +533,26 @@ local function require_with_auto_update(auto_update_config)
     return loaded_lib
 end
 
+local function build_source_url(auto_update_config, dependency)
+    return get_github_raw_url(auto_update_config.project_url, auto_update_config.branch, dependency)
+end
+
+local function expand_dependency(auto_update_config, dependency)
+    if type(dependency) == "string" then
+        local source_url = build_source_url(auto_update_config, dependency)
+        if not source_url then
+            error("Failed to build dependency source URL")
+        end
+        dependency = {
+            source_url=build_source_url(auto_update_config, dependency),
+            script_relpath=dependency,
+        }
+    end
+    dependency.is_dependency = true
+    if dependency.silent_updates == nil then dependency.silent_updates = auto_update_config.silent_updates end
+    return dependency
+end
+
 ---
 --- Auto Update Check
 ---
@@ -534,7 +561,9 @@ function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
     debug_log("Running auto-update on "..auto_update_config.script_filename.."...")
     if is_update_disabled() then
-        util.toast("Cannot auto-update due to disabled internet access. To enable updates, please stop the script then uncheck the `Disable Internet Access` option.", TOAST_ALL)
+        if SCRIPT_MANUAL_START and not SCRIPT_SILENT_START then
+            util.toast("Cannot auto-update due to disabled internet access. To enable updates, please stop the script then uncheck the `Disable Internet Access` option.", TOAST_ALL)
+        end
         return false
     end
     local busy_menu
@@ -567,8 +596,7 @@ function run_auto_update(auto_update_config)
     local dependency_updated = false
     if auto_update_config.dependencies ~= nil then
         for _, dependency in pairs(auto_update_config.dependencies) do
-            dependency.is_dependency = true
-            if dependency.silent_updates == nil then dependency.silent_updates = auto_update_config.silent_updates end
+            dependency = expand_dependency(auto_update_config, dependency)
             if (is_due_for_update_check(auto_update_config) or auto_update_config.script_updated or auto_update_config.version_data.fresh_update) then dependency.check_interval = 0 end
             if dependency.is_required and (dependency.script_relpath:match("(.*)[.]lua$") or dependency.script_relpath:match("(.*)[.]pluto$")) then
                 require_with_auto_update(dependency)
@@ -580,7 +608,7 @@ function run_auto_update(auto_update_config)
     end
     if auto_update_config.version_data.fresh_update and not auto_update_config.is_dependency then
         -- TODO: Show changelog
-        if auto_update_config.version_data.script_version then
+        if auto_update_config.version_data.script_version and (SCRIPT_MANUAL_START and not SCRIPT_SILENT_START) then
             util.toast("Updated "..auto_update_config.script_filename.." to "..tostring(auto_update_config.version_data.script_version), TOAST_ALL)
         end
         auto_update_config.version_data.fresh_update = false
@@ -610,20 +638,6 @@ end
 function auto_update(auto_update_config)
     run_auto_update(auto_update_config)
 end
-
----
---- Self-Update
----
-
--- util.create_thread(function()
---     run_auto_update({
---         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
---         script_relpath="lib/auto-updater.lua",
---         auto_restart = false,
---         verify_file_begins_with="--",
---         check_interval = 86400,
---     })
--- end)
 
 ---
 --- Return Object
