@@ -7,7 +7,6 @@ A lib file to make auto-updating script files easy. Relies on [ETags](https://de
 1. First, add this snippet near the top of your Lua Script to auto-install the auto-updater script itself.
 
 ```lua
--- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 util.ensure_package_is_installed("lua/auto-updater")
 local auto_updater = require("auto-updater")
 ```
