@@ -21,155 +21,28 @@ auto_updater.run_auto_update({
 ```
 
 The only required configuration is `source_url`, the URL for the raw version of your main script file.
-The `script_relpath` must be set, but for the main script file this can be left as `SCRIPT_RELPATH` and will be set by Stand.
-Use the optional `verify_file_begins_with` parameter to specify how the file is expected to begin, regardless of version changes.
-If you keep the example verification, make sure your file begins with a comment (Ex: `-- MyScript`).
+The `script_relpath` must be set, but for the main script file this can be left as `SCRIPT_RELPATH` and will be automatically set by Stand.
 
 3. That's it! Each day your script is run, it will make a quick check for an update, and if found replace the current script and restart.
 
-### Additional files
+### Additional Dependencies
 
-If your project depends on additional files, you can setup auto_update calls for each file so that they 
-will auto-install and auto-update as needed. The auto-updater even uses this internally on itself to apply updates.
-However this method can be slow, so for lots of files using a list of `dependencies` is suggested.
+If your project depends on additional files, you can include them as well in the `dependencies` list. 
+If you supply a GitHub `project_url` and `branch` then the dependencies can simply be the `script_relpath` values and the rest will be assumed.
 
-#### Example auto-updating of single file
-
+#### Example Auto-Updater with Dependencies
 ```lua
 auto_updater.run_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-    script_relpath="lib/auto-updater.lua",
-    verify_file_begins_with="--"
-})
-```
-
-#### Example auto-updating and `require()` of single file
-
-The helper function `require_with_auto_update` is used to both auto-update a file and require it for use in your script at the same time.
-
-```lua
-local inspect = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
-    script_relpath="lib/inspect.lua",
-    verify_file_begins_with="local",
-})
-```
-
-#### Example multiple dependencies
-
-If your script depends on multiple files, you can mark them all as dependencies on the main script, so that they will be checked for updates anytime the main script is updated. The loaded file can be accessed with the `loaded_lib` parameter on the dependency config item.
-
-This is an example of [Constructor's auto-update configuration](https://github.com/hexarobi/stand-lua-constructor/blob/main/Constructor.lua#L48),
-which loads many files through the dependencies list, and then loops through the loaded dependenices to create them as locally accessible variables.
-
-```lua
-
-local default_check_interval = 604800
-local auto_update_config = {
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-context-menu/main/ContextMenu.lua",
     script_relpath=SCRIPT_RELPATH,
-    switch_to_branch=selected_branch,
-    verify_file_begins_with="--",
-    check_interval=86400,
-    silent_updates=true,
+    project_url="https://github.com/hexarobi/stand-lua-context-menu",
+    branch="main",
     dependencies={
-        {
-            name="inspect",
-            source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
-            script_relpath="lib/inspect.lua",
-            verify_file_begins_with="local",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="xml2lua",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
-            script_relpath="lib/constructor/xml2lua.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-        },
-        {
-            name="constants",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
-            script_relpath="lib/constructor/constants.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="constructor_lib",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
-            script_relpath="lib/constructor/constructor_lib.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="iniparser",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/iniparser.lua",
-            script_relpath="lib/constructor/iniparser.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-        },
-        {
-            name="convertors",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
-            script_relpath="lib/constructor/convertors.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="curated_attachments",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
-            script_relpath="lib/constructor/curated_attachments.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="translations",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
-            script_relpath="lib/constructor/translations.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="constructor_logo",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
-            script_relpath="lib/constructor/constructor_logo.png",
-            check_interval=default_check_interval,
-        },
-        {
-            name="objects_complete",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
-            script_relpath="lib/constructor/objects_complete.txt",
-            verify_file_begins_with="ba_prop_glass_garage_opaque",
-            check_interval=default_check_interval,
-        },
-    }
-}
-auto_updater.run_auto_update(auto_update_config)
-
--- Load required dependencies into global namespace
-for _, dependency in pairs(auto_update_config.dependencies) do
-    if dependency.is_required then
-        if dependency.loaded_lib == nil then
-            util.toast("Error loading lib "..dependency.name, TOAST_ALL)
-        else
-            local var_name = dependency.name
-            _G[var_name] = dependency.loaded_lib
-        end
-    end
-end
-
--- Dependencies can now be used by name
-util.toast("Tire position name "..inspect(constants.tire_position_names))
+        "lib/context_menu/constants.lua",
+        "lib/context_menu/shared_state.lua",
+        "lib/context_menu/vehicle_utils.lua",
+    },
+})
 ```
 
 #### Example dev branch picker
@@ -213,7 +86,6 @@ end)
 
 The `run_auto_update()` function accepts a table of options, which are described here.
 
-
 #### `source_url`
 
 The HTTP URL of the hosted source code for the script file to be downloaded. 
@@ -224,6 +96,14 @@ This MUST point to a CDN host that supports ETags, such as GitHub, or files will
 The relative path from the `Stand/Lua Scripts/` directory to the the file to be added or updated by the source file.
 For main scripts, the Stand built-in `SCRIPT_RELPATH` will work without any modification.
 For dependency lib files, graphic files, etc... this can be further configured.
+
+#### `project_url` (Optional, default=nil)
+
+The GitHub project URL for your app. Required for using simple strings in the dependencies list.
+
+#### `branch` (Optional, default=main)
+
+The main git branch of your project. For most project this will be `main`.
 
 #### `check_interval` (Optional, default=86400)
 
@@ -279,7 +159,7 @@ a menu item to kick off an update check.
 
 ```lua
 -- Manually check for updates with a menu option
-menu.action(script_meta_menu, "Check for Update", {}, "The script will automatically check for updates at most daily, but you can manually check using this option anytime.", function()
+menu.my_root():action("Check for Update", {}, "The script will automatically check for updates at most daily, but you can manually check using this option anytime.", function()
     auto_update_config.check_interval = 0
     util.toast("Checking for updates")
     auto_updater.run_auto_update(auto_update_config)
